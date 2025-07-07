@@ -1,0 +1,6 @@
+source-to-object distance: 410 mm
+object-to-detector distance: 210 mm
+detector width: 148.8 mm
+detector pixel: 0.2 mm
+
+detector offset: 70.5 mm
