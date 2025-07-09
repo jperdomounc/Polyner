@@ -1,6 +1,6 @@
 # Polyner (UNC 3D ms-array adaptation)
 
-This repository is the official implementation of our NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
+This repository is an adaptation the NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
 
 ![image](gif/fig_method.jpg)
 *Fig. 1: Overview of the proposed Polyner model.*
@@ -15,14 +15,24 @@ This repository is the official implementation of our NeurIPS 2023 paper "*Unsup
 ## 2. File Tree
 ```
 Polyner
-│  config.json					# configuration script.
+│  config.json					# configuration script (original)
+│  config_unc.json				# UNC-specific configuration
 │  dataset.py					# dataloader
 │  eval.py			   		# quantitative evaluation
-│  main.py					# running script for training
+│  main.py					# running script for training (original)
+│  main_unc.py					# UNC-specific training script
 │  model.py					# EAS loss
 │  readme.md					# readme file
 │  Polyner.py					# training function
 │  utils.py					# tools
+│  prepare_unc_data.py				# UNC data preparation script
+│  convert_unc_data.py				# UNC data conversion utilities
+│  convert_nrrd_to_nii.py			# NRRD to NIfTI conversion
+│  metal_mask_threshold.py			# Metal mask generation
+│  requirements.txt				# Python dependencies
+│  package.json					# Node.js dependencies
+│  notes.md					# development notes
+│  notes.txt					# additional notes
 │  
 ├─data_simulation				# data simulation
 │  │  config_dl.yaml				# acquisition parameters
@@ -33,25 +43,68 @@ Polyner
 │  │      interpolate_projection.m
 │  │      pkev2kvp.m
 │  │      simulate_metal_artifact.m
+│  │      @YAML/					# YAML parsing utilities
 │  │              
 │  ├─metal					# prior data for simulation
+│  │      GE14Spectrum120KVP.mat
+│  │      MiuofAl.mat, MiuofAu.mat, etc.	# material attenuation data
+│  │      SampleMasks.mat
 │  │      
 │  └─slice
-│          gt_x.nii				# raw data
+│          gt_0.nii to gt_199.nii		# raw data (200 slices)
 │      
-├─input
+├─input						# original DeepLesion dataset
 │      fanSensorPos.nii				# geometry angle
 │      GE14Spectrum120KVP.mat			# energy spectrum
-│      gt_x.nii					# gt image
-│      mask_x.nii				# metal mask
-│      ma_x.nii					# FBP reconstructions
-│      ma_sinogram_x.nii			# metal-corrupted measurements
+│      gt_0.nii to gt_9.nii			# ground truth images
+│      mask_0.nii to mask_9.nii			# metal masks
+│      ma_0.nii to ma_9.nii			# FBP reconstructions
+│      ma_sinogram_0.nii to ma_sinogram_9.nii	# metal-corrupted measurements
 │      
-├─model
+├─input_unc					# UNC-specific input data
+│      fanSensorPos.nii				# UNC linear detector geometry
+│      GE14Spectrum120KVP.mat			# energy spectrum
+│      gt_0.nii to gt_2.nii			# UNC ground truth images
+│      mask_0.nii to mask_2.nii			# UNC metal masks
+│      ma_0.nii to ma_2.nii			# UNC FBP reconstructions
+│      ma_sinogram_0.nii to ma_sinogram_2.nii	# UNC metal-corrupted measurements
+│      
+├─UNCtestdata					# UNC RANDO phantom data
+│  │  config.txt				# acquisition parameters
+│  │  Proj_RANDO_Metal_DEMSCBCT_src5_110kvp_744_229.bin	# raw projections
+│  │  Rec_RANDO_Metal_DEMSCBCT_src5_110kvp_480_480_120_75keV_HU.bin	# HU reconstruction
+│  │  Rec_RANDO_Metal_DEMSCBCT_src5_110kvp_480_480_120_75keV_mu.bin	# μ reconstruction
+│  │  Segmentation-Segment_1-label.nrrd		# metal segmentation
+│  │  spectrum_UNC.mat				# UNC X-ray spectrum
+│  │  slice42_216_216.bin, rec42_216_216.bin, sino42_400_360.bin	# test slices
+│  │  Intro1.jpg, Intro2.jpg			# documentation images
+│  │  
+│  ├─converted					# processed UNC data
+│  │      RANDO_Metal_HU_480x480x120.nii	# 3D HU volume
+│  │      RANDO_Metal_mu_480x480x120.nii	# 3D μ volume
+│  │      metal_mask_RANDO*.nii			# various metal masks
+│  │      Segmentation-Segment_1-label.nii	# converted segmentation
+│  │      slice42_216x216.nii, rec42_216x216.nii	# test slice data
+│  │      
+│  └─DualEnergy Result				# dual energy results
+│      └─DEMSCBCT
+│          └─RANDO_MAR_Ca_110kVp_noconstrain
+│              ├─VMI HU				# virtual monoenergetic images (HU)
+│              └─VMI mu				# virtual monoenergetic images (μ)
+│      
+├─model						# trained models (original)
 │      model_x.pkl				# pre-trained Polyner
 │      
-└─output
-        polyner_x.nii				# Polyner reconstructions
+├─model_unc					# UNC-specific trained models
+│      
+├─output					# original results
+│      polyner_0.nii to polyner_9.nii		# Polyner reconstructions
+│      
+├─output_unc					# UNC-specific results
+│      
+└─gif						# visualization assets
+        fig1.gif, fig2.gif			# result animations
+        fig_method.jpg				# method overview
 ```
 
 ## 3. Main Requirements
@@ -132,7 +185,7 @@ This code is available for non-commercial research and education purposes only. 
 
 ## 10. Citation
 
-If you find our work useful in your research, please cite:
+The original code and paper was completed by the following people below:
 ```
 @inproceedings{
 wu2023unsupervised,
