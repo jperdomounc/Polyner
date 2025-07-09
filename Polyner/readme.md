@@ -92,11 +92,45 @@ To simulate the metal-corrupted measurements, navigate to `./data_simulation` an
 NIFTI files (`.nii`) can be viewed by using the ITK-SNAP software, which is available for free download at: http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP4
 
 
-## 8. License
+## 8. UNC Cone Beam CT Adaptation
+
+This repository has been adapted for UNC's 3D multisource cone beam CT system. Key modifications include:
+
+### UNC-Specific Configuration
+- **Geometry**: Linear detector (not arc) with UNC specifications:
+  - Source-to-object distance (SOD): 410mm
+  - Source-to-detector distance (SDD): 620mm  
+  - Detector dimensions: 148.8mm × 148.8mm
+  - Detector pixel size: 0.2mm
+  - Detector offset: 70.5mm
+
+### Data Preparation
+- `prepare_unc_data.py`: Converts UNC RANDO phantom data to Polyner format
+- `config_unc.json`: UNC-specific configuration parameters
+- `input_unc/`: Directory containing UNC test data
+
+### MATLAB Simulation Updates
+- Modified `simulate_metal_artifact.m` to use linear detector geometry
+- Updated all `fanbeam`/`ifanbeam` calls from arc to line geometry
+- Ensures proper forward/backward projection for UNC system
+
+### Usage for UNC Data
+```bash
+# Prepare UNC data
+python prepare_unc_data.py
+
+# Train with UNC configuration  
+python main.py --config config_unc.json
+
+# Evaluate UNC results
+python eval.py --config config_unc.json
+```
+
+## 9. License
 
 This code is available for non-commercial research and education purposes only. It is not allowed to be reproduced, exchanged, sold, or used for profit.
 
-## 9. Citation
+## 10. Citation
 
 If you find our work useful in your research, please cite:
 ```
