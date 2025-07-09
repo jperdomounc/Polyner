@@ -3,10 +3,17 @@
         "in_dir": "./input_unc",
         "model_dir": "./model_unc",
         "out_dir": "./output_unc",
-        "voxel_size": 0.1,
+        "voxel_size": 0.2,
         "SOD": 410,
+        "SDD": 620,
+        "detector_width": 148.8,
+        "detector_height": 148.8,
+        "detector_pixel_size": 0.2,
+        "detector_offset": 70.5,
+        "detector_geometry": "linear",
         "h": 216,
-        "w": 216
+        "w": 216,
+        "geometry_type": "cone_beam"
     },
     "train": {
         "gpu": 0,

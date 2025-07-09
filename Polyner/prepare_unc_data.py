@@ -135,12 +135,20 @@ def prepare_unc_data_for_polyner():
         if mask_file.exists():
             print(f"  Mask shape: {mask_array.shape}, metal pixels: {np.sum(mask_array)}")
     
-    # 4. Create fan sensor positions (detector geometry)
+    # 4. Create fan sensor positions (linear detector geometry for UNC cone beam)
     print("\nCreating detector geometry...")
     
-    # Use UNC geometry parameters adapted for 216x216 reconstruction
-    detector_positions = np.linspace(-30.5, 30.5, 216).astype(np.float32)
-    fanSensorPos = detector_positions.reshape(1, -1)
+    # UNC linear detector parameters
+    detector_width = 148.8  # mm
+    detector_pixels = 216   # resized from 744
+    detector_pixel_size = detector_width / detector_pixels
+    detector_offset = 70.5  # mm
+    
+    # Linear detector positions (not arc) - centered with offset
+    detector_positions = np.linspace(-detector_width/2 + detector_offset, 
+                                   detector_width/2 + detector_offset, 
+                                   detector_pixels).astype(np.float32)
+    fanSensorPos = detector_positions.reshape(-1, 1)
     
     fanPos_sitk = sitk.GetImageFromArray(fanSensorPos)
     sitk.WriteImage(fanPos_sitk, str(polyner_input / "fanSensorPos.nii"))

@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """
-Metal Mask Thresholding Script for Multi-Source Array Cone Beam CT
-Author: Claude Code Assistant
-Date: 2025-07-02
-
 This script provides metal mask thresholding functionality for CT images,
 specifically designed to work with multi-source array cone beam CT systems.
 It includes both simple thresholding and advanced morphological operations.
 """
+
 
 import numpy as np
 import SimpleITK as sitk
@@ -81,9 +78,7 @@ class MetalMaskThresholder:
         Returns:
             np.ndarray: Binary metal mask
         """
-        mask = (image >= threshold_hu).astype(np.uint8)
-        print(f"Simple threshold {threshold_hu} HU: {np.sum(mask)} voxels (image range: {np.min(image):.2f} to {np.max(image):.2f})")
-        return mask
+        return (image >= threshold_hu).astype(np.uint8)
     
     def adaptive_threshold_mask(self, image):
         """
@@ -99,14 +94,11 @@ class MetalMaskThresholder:
         high_intensity_mask = image > self.config["bone_threshold_hu"]
         
         if np.sum(high_intensity_mask) == 0:
-            print(f"No high intensity pixels found (>{self.config['bone_threshold_hu']} HU)")
             return np.zeros_like(image, dtype=np.uint8)
         
         # Apply Otsu thresholding to high-intensity regions
         threshold = filters.threshold_otsu(image[high_intensity_mask])
         threshold = max(threshold, self.config["metal_threshold_hu"])
-        
-        print(f"Adaptive threshold: {threshold:.2f} HU, high intensity pixels: {np.sum(high_intensity_mask)}")
         
         return (image >= threshold).astype(np.uint8)
     
@@ -121,31 +113,21 @@ class MetalMaskThresholder:
             np.ndarray: Processed binary mask
         """
         config = self.config["morphology"]
-        initial_count = np.sum(binary_mask)
         
         # Erosion to remove noise
         if config["erosion_radius"] > 0:
             kernel = morphology.disk(config["erosion_radius"])
             binary_mask = morphology.binary_erosion(binary_mask, kernel)
-            after_erosion = np.sum(binary_mask)
-            if initial_count > 0:
-                print(f"After erosion: {after_erosion} voxels (was {initial_count})")
         
         # Closing to fill gaps
         if config["closing_radius"] > 0:
             kernel = morphology.disk(config["closing_radius"])
             binary_mask = morphology.binary_closing(binary_mask, kernel)
-            after_closing = np.sum(binary_mask)
-            if initial_count > 0:
-                print(f"After closing: {after_closing} voxels")
         
         # Dilation to restore original size and ensure coverage
         if config["dilation_radius"] > 0:
             kernel = morphology.disk(config["dilation_radius"])
             binary_mask = morphology.binary_dilation(binary_mask, kernel)
-            after_dilation = np.sum(binary_mask)
-            if initial_count > 0:
-                print(f"After dilation: {after_dilation} voxels")
         
         return binary_mask.astype(np.uint8)
     
@@ -160,7 +142,6 @@ class MetalMaskThresholder:
             np.ndarray: Cleaned binary mask
         """
         config = self.config["connected_components"]
-        initial_count = np.sum(binary_mask)
         
         # Remove small objects
         cleaned_mask = morphology.remove_small_objects(
@@ -168,10 +149,6 @@ class MetalMaskThresholder:
             min_size=config["min_size"],
             connectivity=config["connectivity"]
         )
-        
-        final_count = np.sum(cleaned_mask)
-        if initial_count > 0:
-            print(f"Small object removal: {final_count} voxels (was {initial_count}, min_size={config['min_size']})")
         
         return cleaned_mask.astype(np.uint8)
     
@@ -217,15 +194,8 @@ class MetalMaskThresholder:
         # Handle 3D images by processing slice by slice
         if len(image_array.shape) == 3:
             mask_array = np.zeros_like(image_array, dtype=np.uint8)
-            total_metal_voxels = 0
             for i in range(image_array.shape[0]):
-                slice_mask = self.create_metal_mask(image_array[i], method)
-                mask_array[i] = slice_mask
-                slice_metal = np.sum(slice_mask)
-                total_metal_voxels += slice_metal
-                if slice_metal > 0:
-                    print(f"Slice {i}: {slice_metal} metal voxels (range: {np.min(image_array[i]):.2f} to {np.max(image_array[i]):.2f})")
-            print(f"Total metal voxels across all slices: {total_metal_voxels}")
+                mask_array[i] = self.create_metal_mask(image_array[i], method)
         else:
             mask_array = self.create_metal_mask(image_array, method)
         
