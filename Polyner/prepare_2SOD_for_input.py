@@ -92,31 +92,49 @@ def prepare_2SOD_for_input():
         file_size = sino_file.stat().st_size
         print(f"  File size: {file_size} bytes")
         
-        # Try the most likely formats
-        attempts = [
-            ((360, 400), np.float64),
-            ((400, 360), np.float64), 
-            ((360, 400), np.float32),
-            ((400, 360), np.float32),
-            ((744, 360), np.float64),
-            ((360, 744), np.float64),
-            ((744, 360), np.float32),
-            ((360, 744), np.float32)
-        ]
+        # Calculate possible shapes based on actual file size
+        total_float32 = file_size // 4  # 187,200 elements
+        total_float64 = file_size // 8  # 93,600 elements
         
-        for shape, dtype in attempts:
-            expected_size = shape[0] * shape[1] * (8 if dtype == np.float64 else 4)
-            print(f"  Trying {shape} {dtype.__name__} (expected: {expected_size} bytes)")
-            if abs(file_size - expected_size) < 1000:
-                try:
-                    sino42 = load_binary_data(sino_file, shape, dtype)
-                    if shape[0] > shape[1]:  # Transpose if needed
+        print(f"  Total elements: {total_float32} (float32) or {total_float64} (float64)")
+        
+        # Find factors that make sense for sinogram dimensions
+        possible_shapes = []
+        
+        # For float32 (187,200 elements)
+        for h in [360, 400, 744, 520, 468]:
+            if total_float32 % h == 0:
+                w = total_float32 // h
+                possible_shapes.append(((h, w), np.float32))
+                
+        # For float64 (93,600 elements) 
+        for h in [360, 400, 520, 468, 306]:
+            if total_float64 % h == 0:
+                w = total_float64 // h
+                possible_shapes.append(((h, w), np.float64))
+        
+        print(f"  Possible shapes: {[(shape, dtype.__name__) for shape, dtype in possible_shapes]}")
+        
+        # Try all possible shapes
+        for (shape, dtype) in possible_shapes:
+            try:
+                print(f"  Trying {shape} {dtype.__name__}...")
+                sino42 = load_binary_data(sino_file, shape, dtype)
+                
+                # Check if this looks like reasonable sinogram data
+                if np.min(sino42) >= 0 and np.max(sino42) > 0:
+                    # Ensure (angles, detectors) format - typically angles < detectors
+                    if shape[0] > shape[1]:
+                        print(f"    Transposing from {sino42.shape} to {sino42.T.shape}")
                         sino42 = sino42.T
                     print(f"  ✅ Success: {sino42.shape}, range: [{np.min(sino42):.3f}, {np.max(sino42):.3f}]")
                     break
-                except Exception as e:
-                    print(f"    Failed: {e}")
-                    continue
+                else:
+                    print(f"    Data range looks suspicious: [{np.min(sino42):.3f}, {np.max(sino42):.3f}]")
+                    
+            except Exception as e:
+                print(f"    Failed: {e}")
+                continue
     
     # Load rec42_2SOD.bin
     rec_file = data_base / "rec42_2SOD.bin"
