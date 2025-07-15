@@ -184,11 +184,20 @@ def prepare_2SOD_for_input():
     
     # Generate and save fan sensor positions for 2SOD geometry
     print(f"\n🔧 Creating 2SOD fan sensor positions...")
-    fan_positions = generate_2SOD_fan_positions(400, 410)
+    
+    # Use the actual sinogram detector count
+    if sino42 is not None:
+        num_detectors = sino42.shape[1]  # detectors dimension
+        print(f"  Sinogram shape: {sino42.shape} -> using {num_detectors} detectors")
+    else:
+        num_detectors = 400  # fallback
+        print(f"  Using default {num_detectors} detectors")
+    
+    fan_positions = generate_2SOD_fan_positions(num_detectors, 410)
     fanSensorPos = fan_positions.reshape(-1, 1)
     fanPos_sitk = sitk.GetImageFromArray(fanSensorPos)
     sitk.WriteImage(fanPos_sitk, 'input/fanSensorPos.nii')
-    print(f"  ✅ Fan positions: range [{np.min(fan_positions):.1f}, {np.max(fan_positions):.1f}] mm")
+    print(f"  ✅ Fan positions: {len(fan_positions)} detectors, range [{np.min(fan_positions):.1f}, {np.max(fan_positions):.1f}] mm")
     
     # Copy spectrum file if available
     spectrum_sources = [
