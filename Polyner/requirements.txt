@@ -1,6 +1,0 @@
-simpleitk
-tqdm
-numpy
-commentjson
-torch torchvision torchaudio
-git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
