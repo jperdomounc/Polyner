@@ -71,10 +71,10 @@ def prepare_2SOD_for_input():
     sino42 = None
     rec42 = None
     
-    # Load slice42_sod
-    slice_file = data_base / "slice42_sod"
+    # Load slice42_2SOD.bin
+    slice_file = data_base / "slice42_2SOD.bin"
     if slice_file.exists():
-        print("\n📂 Loading slice42_sod...")
+        print("\n📂 Loading slice42_2SOD.bin...")
         try:
             slice42 = load_binary_data(slice_file, (216, 216), np.float64)
             print(f"  Range: [{np.min(slice42):.3f}, {np.max(slice42):.3f}]")
@@ -85,36 +85,43 @@ def prepare_2SOD_for_input():
             except Exception as e:
                 print(f"  ❌ Failed: {e}")
     
-    # Load sino42_sod
-    sino_file = data_base / "sino42_sod"
+    # Load sino42_2SOD.bin
+    sino_file = data_base / "sino42_2SOD.bin"
     if sino_file.exists():
-        print("\n📂 Loading sino42_sod...")
+        print("\n📂 Loading sino42_2SOD.bin...")
         file_size = sino_file.stat().st_size
+        print(f"  File size: {file_size} bytes")
         
         # Try the most likely formats
         attempts = [
             ((360, 400), np.float64),
             ((400, 360), np.float64), 
             ((360, 400), np.float32),
-            ((400, 360), np.float32)
+            ((400, 360), np.float32),
+            ((744, 360), np.float64),
+            ((360, 744), np.float64),
+            ((744, 360), np.float32),
+            ((360, 744), np.float32)
         ]
         
         for shape, dtype in attempts:
             expected_size = shape[0] * shape[1] * (8 if dtype == np.float64 else 4)
+            print(f"  Trying {shape} {dtype.__name__} (expected: {expected_size} bytes)")
             if abs(file_size - expected_size) < 1000:
                 try:
                     sino42 = load_binary_data(sino_file, shape, dtype)
                     if shape[0] > shape[1]:  # Transpose if needed
                         sino42 = sino42.T
-                    print(f"  Success: {sino42.shape}, range: [{np.min(sino42):.3f}, {np.max(sino42):.3f}]")
+                    print(f"  ✅ Success: {sino42.shape}, range: [{np.min(sino42):.3f}, {np.max(sino42):.3f}]")
                     break
-                except:
+                except Exception as e:
+                    print(f"    Failed: {e}")
                     continue
     
-    # Load rec42_sod  
-    rec_file = data_base / "rec42_sod"
+    # Load rec42_2SOD.bin
+    rec_file = data_base / "rec42_2SOD.bin"
     if rec_file.exists():
-        print("\n📂 Loading rec42_sod...")
+        print("\n📂 Loading rec42_2SOD.bin...")
         try:
             rec42 = load_binary_data(rec_file, (216, 216), np.float64)
             print(f"  Range: [{np.min(rec42):.3f}, {np.max(rec42):.3f}]")
@@ -138,25 +145,24 @@ def prepare_2SOD_for_input():
     # Now save to input/ folder in Polyner format
     print(f"\n💾 Saving to input/ folder...")
     
-    # Save as multiple cases (like the original dataset)
-    for i in range(3):  # Create 3 test cases
-        print(f"\nCreating test case {i}...")
-        
-        # Ground truth
-        save_as_nifti(slice42, f'input/gt_{i}.nii')
-        
-        # Sinogram (use same sinogram for all cases)
-        save_as_nifti(sino42, f'input/ma_sinogram_{i}.nii')
-        
-        # Metal mask (create simple threshold mask)
-        threshold = np.percentile(slice42, 95 - i*2)  # Slightly different thresholds
-        metal_mask = (slice42 > threshold).astype(np.float32)
-        save_as_nifti(metal_mask, f'input/mask_{i}.nii')
-        print(f"  Metal pixels: {np.sum(metal_mask):.0f}")
-        
-        # Metal-affected reconstruction (use rec42 if available, else slice42)
-        ma_image = rec42 if rec42 is not None else slice42
-        save_as_nifti(ma_image, f'input/ma_{i}.nii')
+    # Save as single test case (case 0)
+    print(f"\nCreating test case 0...")
+    
+    # Ground truth
+    save_as_nifti(slice42, f'input/gt_0.nii')
+    
+    # Sinogram
+    save_as_nifti(sino42, f'input/ma_sinogram_0.nii')
+    
+    # Metal mask (create simple threshold mask)
+    threshold = np.percentile(slice42, 95)
+    metal_mask = (slice42 > threshold).astype(np.float32)
+    save_as_nifti(metal_mask, f'input/mask_0.nii')
+    print(f"  Metal pixels: {np.sum(metal_mask):.0f}")
+    
+    # Metal-affected reconstruction (use rec42 if available, else slice42)
+    ma_image = rec42 if rec42 is not None else slice42
+    save_as_nifti(ma_image, f'input/ma_0.nii')
     
     # Generate and save fan sensor positions for 2SOD geometry
     print(f"\n🔧 Creating 2SOD fan sensor positions...")
