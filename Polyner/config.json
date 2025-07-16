@@ -5,8 +5,7 @@
         "out_dir": "./output",
         "voxel_size": 1.0,
         "SOD": 410,
-        "SDD": 820,
-        "detector_geometry": "arc",
+        "detector_geometry": "line",
         "h": 216,
         "w": 216
     },
