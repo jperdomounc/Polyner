@@ -1,6 +1,6 @@
 # Polyner
 
-This repository is an implementation of our NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
+This repository is the official implementation of our NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
 
 ![image](gif/fig_method.jpg)
 *Fig. 1: Overview of the proposed Polyner model.*

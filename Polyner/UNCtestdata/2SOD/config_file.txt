@@ -1,9 +1,0 @@
-	"file": {
-		"in_dir": "./input",
-		"model_dir": "./model",
-		"out_dir": "./output",
-		"voxel_size": 1,
-		"SOD" : 410,
-		"h": 216,
-		"w": 216
-	}
