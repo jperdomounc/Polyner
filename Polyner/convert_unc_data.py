@@ -51,8 +51,8 @@ def read_binary_volume(filename, shape, dtype=np.float32):
 
 def convert_unc_files():
     """Convert UNC binary files to NIFTI format."""
-    base_path = Path("/Users/juanperdomo/Desktop/PolynerCode/Polyner/UNCtestdata")
-    output_path = base_path / "converted"
+    base_path = Path("/Users/juanperdomo/Desktop/Polyner")
+    output_path = base_path
     output_path.mkdir(exist_ok=True)
     
     # File specifications based on filenames
@@ -126,7 +126,7 @@ def convert_unc_files():
 
 def convert_vmi_data():
     """Convert VMI HU data for testing."""
-    base_path = Path("/Users/juanperdomo/Desktop/PolynerCode/Polyner/UNCtestdata")
+    base_path = Path("/Users/juanperdomo/Desktop/Polyner")
     vmi_path = base_path / "DualEnergy Result" / "DEMSCBCT" / "RANDO_MAR_Ca_110kVp_noconstrain" / "VMI HU"
     output_path = base_path / "converted" / "VMI_HU"
     output_path.mkdir(parents=True, exist_ok=True)
