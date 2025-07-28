@@ -5,8 +5,8 @@
 		"out_dir": "./output",
 		"voxel_size": 1,
 		"SOD" : 410,
-		"h": 216,
-		"w": 216
+		"h": 256,
+		"w": 256
 	},
 	"train": {
 		"gpu": 0,
