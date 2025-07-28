@@ -4,7 +4,7 @@
 		"model_dir": "./model",
 		"out_dir": "./output",
 		"voxel_size": 1,
-		"SOD" : 410,
+		"SOD" : 362,
 		"h": 256,
 		"w": 256
 	},
