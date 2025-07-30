@@ -115,10 +115,43 @@ def train(img_id, config):
             kx, ky = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2)
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
+                img_pre_list = []
                 for i, (xy) in enumerate(test_loader):
                     xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
                     img_pre = network(xy)[:, int(np.mean(np.arange(0, e_level)))].view((2 * SOD) + 1, (2 * SOD) + 1)
                     img_pre = img_pre.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
                     img_pre = np.flip(img_pre, axis=1)
+                for i, (xy) in enumerate(test_loader):
+                    xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
+                    img_pre1 = network(xy)[:, 65].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre1 = img_pre1.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
+                    img_pre1 = np.flip(img_pre1, axis=1)
+                for i, (xy) in enumerate(test_loader):
+                    xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
+                    img_pre2 = network(xy)[:, 75].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre2 = img_pre2.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
+                    img_pre2 = np.flip(img_pre2, axis=1)
+                for i, (xy) in enumerate(test_loader):
+                    xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
+                    img_pre3 = network(xy)[:, 90].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre3 = img_pre3.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
+                    img_pre3 = np.flip(img_pre3, axis=1)
+                for i, (xy) in enumerate(test_loader):
+                    xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
+                    img_pre4 = network(xy)[:, 110].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre4 = img_pre4.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
+                    img_pre4 = np.flip(img_pre4, axis=1)
+
+                img_pre_list.append(img_pre)
+                img_pre_list.append(img_pre1)
+                img_pre_list.append(img_pre2)
+                img_pre_list.append(img_pre3)
+                img_pre_list.append(img_pre4)
+
 
                 sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_{}.nii'.format(out_path, img_id))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre1), '{}/polyner_{}.nii'.format(out_path, 65))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre2), '{}/polyner_{}.nii'.format(out_path, 75))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre3), '{}/polyner_{}.nii'.format(out_path, 90))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre4), '{}/polyner_{}.nii'.format(out_path, 110))
+                
