@@ -138,7 +138,7 @@ def train(img_id, config):
                     img_pre3 = np.flip(img_pre3, axis=1)
                 for i, (xy) in enumerate(test_loader):
                     xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
-                    img_pre4 = network(xy)[:, 101].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre4 = network(xy)[:, 100].view((2 * SOD) + 1, (2 * SOD) + 1)
                     img_pre4 = img_pre4.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
                     img_pre4 = np.flip(img_pre4, axis=1)
 
@@ -153,5 +153,5 @@ def train(img_id, config):
                 sitk.WriteImage(sitk.GetImageFromArray(img_pre1), '{}/polyner_{}.nii'.format(out_path, 65))
                 sitk.WriteImage(sitk.GetImageFromArray(img_pre2), '{}/polyner_{}.nii'.format(out_path, 75))
                 sitk.WriteImage(sitk.GetImageFromArray(img_pre3), '{}/polyner_{}.nii'.format(out_path, 90))
-                sitk.WriteImage(sitk.GetImageFromArray(img_pre4), '{}/polyner_{}.nii'.format(out_path, 101))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre4), '{}/polyner_{}.nii'.format(out_path, 100))
                 
