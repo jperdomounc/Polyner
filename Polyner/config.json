@@ -14,7 +14,7 @@
 		"epoch": 10000,
 		"save_epoch": 1000,
 		"num_sample_ray": 2,
-		"lr_decay_epoch": 5000,
+		"lr_decay_epoch": 1500,
 		"lr_decay_coefficient": 0.1,
 		"batch_size": 40,
 		"lambda": 0.2
