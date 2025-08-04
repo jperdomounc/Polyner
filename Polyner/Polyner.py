@@ -116,8 +116,8 @@ def train(img_id, config):
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 
-                energy_levels = [int(np.mean(np.arange(0, e_level))), 30, 75, 120]
-                output_ids = [img_id, 30, 75, 120]
+                energy_levels = [int(np.mean(np.arange(0, e_level))), 30, 100]
+                output_ids = [img_id, 30, 100]
                 
                 def generate_image(energy_idx):
                     for i, (xy) in enumerate(test_loader):
