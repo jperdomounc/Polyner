@@ -3,7 +3,7 @@
 		"in_dir": "./input",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.05,
+		"voxel_size": 0.01,
 		"SOD" : 362,
 		"h": 512,
 		"w": 512
