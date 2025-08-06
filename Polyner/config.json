@@ -4,9 +4,9 @@
 		"model_dir": "./model",
 		"out_dir": "./output",
 		"voxel_size": 0.1,
-		"SOD" : 410,
-		"h": 480,
-		"w": 480
+		"SOD" : 2050,
+		"h": 960,
+		"w": 960
 	},
 	"train": {
 		"gpu": 0,
