@@ -57,7 +57,7 @@ def train(img_id, config):
     # -----------------------
     spectrum = scio.loadmat('./{}/GE14Spectrum120KVP.mat'.format(in_path))['GE14Spectrum120KVP']
 
-    e_1, e_n = 20, 150 #change to 150?
+    e_1, e_n = 20, 120 #change to 150?
     spectrum = spectrum[e_1-1:e_n, 1]
     spectrum = spectrum / np.sum(spectrum)
     e_level = len(spectrum)
@@ -117,8 +117,8 @@ def train(img_id, config):
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 
-                energy_levels = [int(np.mean(np.arange(0, e_level))), 30, 75, 120]
-                output_ids = [img_id, 30, 75, 120]
+                energy_levels = [int(np.mean(np.arange(0, e_level))), 30, 75, 100]
+                output_ids = [img_id, 30, 75, 100]
                 
                 def generate_image(energy_idx):
                     for i, (xy) in enumerate(test_loader):
