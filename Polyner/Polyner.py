@@ -113,6 +113,7 @@ def train(img_id, config):
         if (e + 1) % save_epoch == 0:
             img_all = []
             kx, ky = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2)
+            current_loss = loss_log / len(train_loader)
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 
@@ -128,5 +129,5 @@ def train(img_id, config):
                 
                 for energy_idx, output_id in zip(energy_levels, output_ids):
                     img = generate_image(energy_idx)
-                    sitk.WriteImage(sitk.GetImageFromArray(img), '{}/polyner_{}.nii'.format(out_path, output_id))
+                    sitk.WriteImage(sitk.GetImageFromArray(img), '{}/polyner_{}_loss_{:.6f}.nii'.format(out_path, output_id, current_loss))
                 
