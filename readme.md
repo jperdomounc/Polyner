@@ -1,9 +1,11 @@
-# Polyner (UNC 3D ms-array adaptation)
+# Metal Artifact Reduction Package for UNC Multisource Array CBCT System
 
-This repository is an adaptation the NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
+This repository provides a metal artifact reduction (MAR) package specifically adapted for the University of North Carolina's multisource array cone-beam CT (CBCT) system. The package is based on the Polyner method from the NeurIPS 2023 paper "*Unsupervised Polychromatic Neural Representation for CT Metal Artifact Reduction*" by Wu et al. [[OpenReview](https://openreview.net/forum?id=xx3QgKyghS)], [[arXiv](https://arxiv.org/abs/2306.15203)]
+
+The implementation has been specifically modified to work with UNC's linear detector geometry and multisource array configuration, providing effective metal artifact reduction for clinical and research applications.
 
 ![image](gif/fig_method.jpg)
-*Fig. 1: Overview of the proposed Polyner model.*
+*Fig. 1: Overview of the Polyner model architecture adapted for UNC CBCT system.*
 
 ## 1. Visualization
 
@@ -107,27 +109,91 @@ Polyner
         fig_method.jpg				# method overview
 ```
 
-## 3. Main Requirements
-To run this project, you will need the following packages:
-- PyTorch 3.8.13
-- tinycudann
-- SimpleITK, tqdm, numpy, and other packages.
+## 3. Dependencies and Requirements
 
-## 4. Training and Checkpoints
+### Python Dependencies
+The following Python packages are required to run the UNC MAR package:
 
-To train our Polyner from scratch, navigate to `./` and run the following command in your terminal:
+**Core Dependencies:**
+- Python 3.8+
+- PyTorch (with CUDA support recommended)
+- torchvision
+- torchaudio
+- tinycudann (tiny-cuda-nn) - Neural network acceleration
+- numpy - Numerical computing
+- SimpleITK - Medical image processing
+- scipy - Scientific computing library
+
+**Additional Dependencies:**
+- tqdm - Progress bars
+- commentjson - JSON parsing with comments
+- scikit-image (skimage) - Image processing metrics (SSIM, PSNR)
+- pathlib - Path handling (Python standard library)
+
+### MATLAB Dependencies
+For data simulation and preprocessing:
+- MATLAB with Image Processing Toolbox
+- YAML parser (included in `data_simulation/+helper/@YAML/`)
+
+### System Requirements
+- CUDA-compatible GPU (recommended for training)
+- Minimum 8GB RAM
+- Storage space for datasets and models
+
+### Installation
+```bash
+pip install torch torchvision torchaudio
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+pip install simpleitk tqdm numpy commentjson scikit-image scipy
+```
+
+## 4. UNC Multisource Array CBCT Configuration
+
+This package has been specifically adapted for UNC's multisource array CBCT system with the following specifications:
+
+### System Geometry
+- **Detector Type**: Linear detector array (not arc geometry)
+- **Source-to-Object Distance (SOD)**: 410mm
+- **Source-to-Detector Distance (SDD)**: 620mm  
+- **Detector Dimensions**: 148.8mm × 148.8mm
+- **Detector Pixel Size**: 0.2mm
+- **Detector Offset**: 70.5mm
+
+### UNC-Specific Data Processing
+- **Input Data**: RANDO phantom with metal implants
+- **Data Format**: Binary reconstruction files (.bin) converted to NIfTI format
+- **Energy Spectrum**: UNC X-ray spectrum data (`spectrum_UNC.mat`)
+- **Geometry Configuration**: Linear detector geometry in `fanSensorPos.nii`
+
+### Training for UNC Data
+```bash
+# Prepare UNC-specific data
+python prepare_unc_data.py
+
+# Train with UNC configuration
+python main_unc.py
+
+# Evaluate UNC results
+python eval.py --config config_unc.json
+```
+
+The UNC-specific configuration file (`config_unc.json`) contains parameters optimized for the multisource array geometry and clinical protocols.
+
+## 5. Training and Checkpoints (Original Method)
+
+To train the original Polyner model, navigate to `./` and run:
 ```shell
 python main.py
 ```
-This will train the Polyner model for the metal-corrputed sinogram (`./input/ma_sinogram_0~9.nii`). The well-trained model will be stored in `./model` and its corresponding MAR results will be stored in `./output`.
+This trains the model on DeepLesion simulation data (`./input/ma_sinogram_0~9.nii`). Models are stored in `./model` and results in `./output`.
 
-## 5. Evaluation
+## 6. Evaluation
 
-To qualitatively evalute the result, navigate to `./` and run the following comman in your terminal:
+To qualitatively evaluate the results, navigate to `./` and run:
 ```shell
 python eval.py
 ```
-This will compute PSNR and SSIM values of FBP and our Polyner on the ten samples of the DeepLesion dataset.
+This computes PSNR and SSIM values of FBP and Polyner on the DeepLesion dataset samples.
 
 For the ten sinograms (`./input/ma_sinogram_0~9.nii`), the quantitative results are shown in:
 
