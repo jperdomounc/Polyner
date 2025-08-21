@@ -3,10 +3,10 @@
 		"in_dir": "./input",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.1,
-		"SOD" : 362,
-		"h": 1000,
-		"w": 1000
+		"voxel_size": 0.4,
+		"SOD" : 1025,
+		"h": 500,
+		"w": 500
 	},
 	"train": {
 		"gpu": 0,
