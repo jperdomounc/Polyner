@@ -113,6 +113,7 @@ def train(img_id, config):
         if (e + 1) % save_epoch == 0:
             img_all = []
             kx, ky = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2)
+            final_loss = loss_log / len(train_loader)
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 for i, (xy) in enumerate(test_loader):
@@ -121,4 +122,4 @@ def train(img_id, config):
                     img_pre = img_pre.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
                     img_pre = np.flip(img_pre, axis=1)
 
-                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_{}.nii'.format(out_path, img_id))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_{}_{:.3f}.nii'.format(out_path, img_id, final_loss))
