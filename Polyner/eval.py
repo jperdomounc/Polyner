@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     p = []
     s = []
-    for i in range(10):
+    for i in range(1):
         metal = sitk.GetArrayFromImage(sitk.ReadImage('input/mask_{}.nii'.format(i)))
         gt = sitk.GetArrayFromImage(sitk.ReadImage('input/gt_{}.nii'.format(i)))
         recon = sitk.GetArrayFromImage(sitk.ReadImage('output/polyner_{}.nii'.format(i)))
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     p = []
     s = []
-    for i in range(10):
+    for i in range(1):
         metal = sitk.GetArrayFromImage(sitk.ReadImage('input/mask_{}.nii'.format(i)))
         gt = sitk.GetArrayFromImage(sitk.ReadImage('input/gt_{}.nii'.format(i)))
         recon = sitk.GetArrayFromImage(sitk.ReadImage('input/ma_{}.nii'.format(i)))
