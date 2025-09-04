@@ -25,7 +25,7 @@ if __name__ == '__main__':
         s.append(utils.ssim(image=recon, ground_truth=gt))
 
     print('Polyner [PSNR]:{}±{}'.format(np.round(np.mean(p), 2), np.round(np.std(p), 2)))
-    print('Polyner [SSIM]:{}±{}'.format(np.round(np.mean(s), 4), np.round(np.std(s), 4)))
+    print('Polyner [SSIM]:{}±{}'.format(np.round(np.mean(s), 5), np.round(np.std(s), 5)))
 
 
     p = []
@@ -42,4 +42,4 @@ if __name__ == '__main__':
         s.append(utils.ssim(image=recon, ground_truth=gt))
 
     print('FBP [PSNR]:{}±{}'.format(np.round(np.mean(p), 2), np.round(np.std(p), 2)))
-    print('FBP [SSIM]:{}±{}'.format(np.round(np.mean(s), 4), np.round(np.std(s), 4)))
+    print('FBP [SSIM]:{}±{}'.format(np.round(np.mean(s), 5), np.round(np.std(s), 5)))
