@@ -9,6 +9,7 @@ import model
 import torch
 import numpy as np
 import dataset
+import time
 import SimpleITK as sitk
 import tinycudann as tcnn
 from tqdm import tqdm
@@ -85,6 +86,7 @@ def train(img_id, config):
     # optimization & reconstruction
     # -----------------------
     loop_tqdm = tqdm(range(epoch), leave=False)
+    epoch_start_time = time.time()
     for e in loop_tqdm:
         network.train()
         loss_log = 0
@@ -114,6 +116,9 @@ def train(img_id, config):
             img_all = []
             kx, ky = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2)
             final_loss = loss_log / len(train_loader)
+            # Calculate iterations per second
+            elapsed_time = time.time() - epoch_start_time
+            iterations_per_sec = (e + 1) / elapsed_time if elapsed_time > 0 else 0
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 for i, (xy) in enumerate(test_loader):
@@ -122,4 +127,4 @@ def train(img_id, config):
                     img_pre = img_pre.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
                     img_pre = np.flip(img_pre, axis=1)
 
-                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_{}_{:.3f}.nii'.format(out_path, img_id, final_loss))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_{}_{:.5f}_{:.2f}it_s.nii'.format(out_path, img_id, final_loss, iterations_per_sec))
