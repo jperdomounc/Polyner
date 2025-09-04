@@ -214,7 +214,7 @@ class MAREvaluator:
         # Compute metrics
         psnr, ssim = self.compute_metrics(ma_img, mask_img, polyner_img)
         
-        print(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.4f}")
+        print(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.5f}")
         
         return psnr, ssim
     
@@ -253,12 +253,12 @@ class MAREvaluator:
         print("="*50)
         
         for case_idx, psnr, ssim in results:
-            print(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.4f}")
+            print(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.5f}")
         
         if len(results) > 1:
             print(f"\nMean ± Std:")
             print(f"PSNR: {np.mean(psnr_values):.2f} ± {np.std(psnr_values):.2f}")
-            print(f"SSIM: {np.mean(ssim_values):.4f} ± {np.std(ssim_values):.4f}")
+            print(f"SSIM: {np.mean(ssim_values):.5f} ± {np.std(ssim_values):.5f}")
         
         # Save results to file
         self.save_results(results)
@@ -277,7 +277,7 @@ class MAREvaluator:
             
             f.write("Individual Results:\n")
             for case_idx, psnr, ssim in results:
-                f.write(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.4f}\n")
+                f.write(f"Case {case_idx}: PSNR={psnr:.2f}, SSIM={ssim:.5f}\n")
             
             if len(results) > 1:
                 psnr_values = [r[1] for r in results]
@@ -285,7 +285,7 @@ class MAREvaluator:
                 
                 f.write(f"\nSummary Statistics:\n")
                 f.write(f"PSNR: {np.mean(psnr_values):.2f} ± {np.std(psnr_values):.2f}\n")
-                f.write(f"SSIM: {np.mean(ssim_values):.4f} ± {np.std(ssim_values):.4f}\n")
+                f.write(f"SSIM: {np.mean(ssim_values):.5f} ± {np.std(ssim_values):.5f}\n")
         
         print(f"\nResults saved to: {results_file}")
 
