@@ -3,47 +3,37 @@
 		"in_dir": "./input",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.1,
-		"SOD": 1025,
-		"SDD": 1536,
+		"voxel_size": 0.04,
+		"SOD" : 1025,
 		"h": 500,
-		"w": 500,
-		"d": 500,
-		"detector_h": 400,
-		"detector_w": 400,
-		"cone_angle": 15.0,
-		"n_projections": 360
+		"w": 500
 	},
 	"train": {
 		"gpu": 0,
 		"lr": 1e-3,
 		"epoch": 4000,
 		"save_epoch": 500,
-		"num_sample_ray": 8,
+		"num_sample_ray": 4,
 		"lr_decay_epoch": 1000,
 		"lr_decay_coefficient": 0.1,
-		"batch_size": 32,
-		"lambda": 0.2,
-		"3d_sampling": true,
-		"volumetric_loss": true
+		"batch_size": 40,
+		"lambda": 0.2
 	},
 	"encoding": {
 		"otype": "Grid",
 		"type": "Hash",
 		"n_levels": 16,
 		"n_features_per_level": 8,
-		"log2_hashmap_size": 21,
-		"base_resolution": 4,
-		"per_level_scale": 1.8,
-		"interpolation": "Linear",
-		"3d_encoding": true
+		"log2_hashmap_size": 19,
+		"base_resolution": 2,
+		"per_level_scale": 2,
+		"interpolation": "Linear"
 	},
 	"network": {
 		"otype": "FullyFusedMLP",
 		"activation": "ReLU",
 		"output_activation": "Squareplus",
-		"n_neurons": 256,
-		"n_hidden_layers": 3,
-		"3d_output": true
+		"n_neurons": 128,
+		"n_hidden_layers": 2
 	}
 }
