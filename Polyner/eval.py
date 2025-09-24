@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
         gt = np.where(metal==1, 0, gt)
         recon = np.where(metal==1, 0, recon)
+        recon = recon / 5
 
         p.append(utils.psnr(image=recon, ground_truth=gt))
         s.append(utils.ssim(image=recon, ground_truth=gt))
