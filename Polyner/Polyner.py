@@ -28,7 +28,8 @@ def train(img_id, config):
     proj_path = '{}/ma_sinogram_{}.nii'.format(in_path, img_id)
     proj_pos_path = '{}/fanSensorPos.nii'.format(in_path)
     mask_path = '{}/mask_{}.nii'.format(in_path, img_id)
-    h, w, d, SOD = config["file"]["h"], config["file"]["w"], config["file"]["d"], config["file"]["SOD"]
+    h, w, SOD = config["file"]["h"], config["file"]["w"], config["file"]["SOD"]
+    d = 1  # Set to 1 for 2D fan beam
     SDD = config["file"]["SDD"]
     detector_h, detector_w = config["file"]["detector_h"], config["file"]["detector_w"]
     cone_angle = config["file"]["cone_angle"]
