@@ -1,0 +1,67 @@
+{
+	"file": {
+		"in_dir": "./input",
+		"model_dir": "./model",
+		"out_dir": "./output",
+		"voxel_size": 0.02,
+		"SOD": 100,
+		"SDD": 200,
+		"h": 200,
+		"w": 200,
+		"d": 150,
+		"comment_SOD": "Source-to-Origin Distance (isocenter). For 200x200x150 volume, SOD=100 gives 201x201x201 padded volume",
+		"comment_SDD": "Source-to-Detector Distance. Typical ratio SDD/SOD ~ 2.0 for cone-beam CT",
+		"comment_dimensions": "h, w, d are the actual reconstruction volume dimensions. Based on paper: 200x200x150 voxels"
+	},
+	"train": {
+		"gpu": 0,
+		"lr": 1e-3,
+		"epoch": 4000,
+		"save_epoch": 500,
+		"num_sample_ray": 4,
+		"lr_decay_epoch": 500,
+		"lr_decay_coefficient": 0.5,
+		"batch_size": 40,
+		"lambda": 0.2,
+		"comment_batch_size": "May need to reduce batch_size for 3D due to memory constraints. Paper mentions ~10GB for 200x200x150"
+	},
+	"encoding": {
+		"otype": "Grid",
+		"type": "Hash",
+		"n_levels": 16,
+		"n_features_per_level": 8,
+		"log2_hashmap_size": 19,
+		"base_resolution": 2,
+		"per_level_scale": 2,
+		"interpolation": "Linear",
+		"comment": "Hash grid encoding handles 3D automatically. May need to increase n_levels or n_features_per_level for better 3D capacity"
+	},
+	"network": {
+		"otype": "FullyFusedMLP",
+		"activation": "ReLU",
+		"output_activation": "Squareplus",
+		"n_neurons": 128,
+		"n_hidden_layers": 2,
+		"comment_capacity": "For 3D, may want to increase n_neurons (e.g., 256) or n_hidden_layers (e.g., 3-4) for better representation capacity"
+	},
+	"optimization_tips": {
+		"memory_reduction": [
+			"Reduce batch_size (e.g., 20-30 instead of 40)",
+			"Reduce num_sample_ray (e.g., 2-3 instead of 4)",
+			"Use gradient checkpointing if available",
+			"Process volume in sub-regions for very large volumes"
+		],
+		"capacity_increase": [
+			"Increase n_neurons to 256 or 512",
+			"Increase n_hidden_layers to 3 or 4",
+			"Increase n_levels in hash grid to 20-24",
+			"Increase log2_hashmap_size to 20-22"
+		],
+		"typical_cbct_parameters": {
+			"SOD": "Typically 300-600mm for medical CBCT, 50-150mm for micro-CT",
+			"SDD": "Typically 500-1200mm for medical CBCT, SDD/SOD ratio usually 1.5-2.5",
+			"detector_size": "Flat panel: 20-40cm for medical, 5-10cm for micro-CT",
+			"num_projections": "180-720 projections over 360 degrees (0.5-2 degree increments)"
+		}
+	}
+}
