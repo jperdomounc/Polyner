@@ -1,0 +1,8 @@
+tasks oct 23
+
+-investigate proj u and v 
+-ask ai to create some sample data for the 3d adaption
+-fan beam network parameter testing, larger number of training iterations (getting stuck at 4000)
+
+github deepwiki
+-tigre.py

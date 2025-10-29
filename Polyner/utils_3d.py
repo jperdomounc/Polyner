@@ -21,7 +21,7 @@ def ssim(image, ground_truth):
     return structural_similarity(image, ground_truth, data_range=data_range)
 
 
-def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD):
+def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
     """
     Generate 3D rays for cone-beam CT geometry.
 
@@ -30,25 +30,24 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD):
         detector_v_pos: 1D array of detector positions along v (vertical) axis in degrees
         SOD: Source-to-Origin Distance (isocenter distance)
         SDD: Source-to-Detector Distance
+        num_samples: Number of samples along each ray
 
     Returns:
         rays: (num_det_v, num_det_u, num_samples, 3) array of 3D ray coordinates
 
     Note:
-        - Source is at (0, -SOD, 0) in object space
+        - Source is at (0, -1, 0) in normalized coordinates
         - Detector is a flat panel at distance SDD from source
         - Rays are sampled from source to detector, passing through reconstruction volume
+        - SOD and SDD are independent parameters defining the cone-beam geometry
     """
-    # Source position at (0, -SOD, 0) - positioned along negative y-axis
+    # Source position at (0, -1, 0) - positioned along negative y-axis in normalized coords
     source_x = 0
     source_y = -1  # Normalized coordinate
     source_z = 0
 
     num_det_u = len(detector_u_pos)
     num_det_v = len(detector_v_pos)
-
-    # Number of samples along each ray (similar to 2*SOD in 2D version)
-    num_samples = int(2 * SOD)
 
     # Initialize ray array: (num_det_v, num_det_u, num_samples, 3)
     rays = np.zeros((num_det_v, num_det_u, num_samples, 3))
