@@ -34,6 +34,7 @@ def train(img_id, config):
     h, w, d = config["file"]["h"], config["file"]["w"], config["file"]["d"]
     SOD = config["file"]["SOD"]
     SDD = config["file"]["SDD"]
+    num_samples = config["file"]["num_samples"]
     voxel_size = config["file"]["voxel_size"]
 
     # Read projection data to get num_angles
@@ -55,6 +56,7 @@ def train(img_id, config):
     device = torch.device('cuda:{}'.format(str(gpu) if torch.cuda.is_available() else 'cpu'))
 
     # 3D mask
+    # looks fine v
     # -----------------------
     mask = sitk.GetArrayFromImage(sitk.ReadImage(mask_path))
     # Pad mask to match reconstruction volume size
@@ -108,6 +110,7 @@ def train(img_id, config):
             proj_v_pos_path=proj_v_pos_path,
             SOD=SOD,
             SDD=SDD,
+            num_samples=num_samples,
             num_sample_ray=num_sample_ray,
             num_angle=num_angle,
             voxel_size=voxel_size
@@ -117,13 +120,10 @@ def train(img_id, config):
     )
 
     test_loader = data.DataLoader(
-        dataset=dataset_3d.TestData3D(h=(2 * SOD) + 1, w=(2 * SOD) + 1, d=(2 * SOD) + 1),
+        dataset=dataset_3d.TestData3D(h=h, w=w, d=d),
         batch_size=1,
         shuffle=False
     )
-
-    # Number of samples along each ray
-    num_samples = int(2 * SOD)
 
     # optimization & reconstruction
     # -----------------------
@@ -168,7 +168,9 @@ def train(img_id, config):
         # Model save & 3D reconstruction
         if (e + 1) % save_epoch == 0:
             # Calculate crop indices for extracting actual image size from padded volume
-            kx, ky, kz = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2), int(((2 * SOD) - d)/2)
+            kx, ky, kz = int(1 + ((
+                
+            ) - h)/2), int(((2 * SOD) - w)/2), int(((2 * SOD) - d)/2)
             final_loss = loss_log / len(train_loader)
 
             # Calculate iterations per second

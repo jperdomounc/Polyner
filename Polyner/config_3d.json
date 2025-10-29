@@ -6,11 +6,13 @@
 		"voxel_size": 0.02,
 		"SOD": 100,
 		"SDD": 200,
+		"num_samples": 200,
 		"h": 200,
 		"w": 200,
 		"d": 150,
-		"comment_SOD": "Source-to-Origin Distance (isocenter). For 200x200x150 volume, SOD=100 gives 201x201x201 padded volume",
-		"comment_SDD": "Source-to-Detector Distance. Typical ratio SDD/SOD ~ 2.0 for cone-beam CT",
+		"comment_SOD": "Source-to-Origin Distance (isocenter) in mm. Independent from num_samples.",
+		"comment_SDD": "Source-to-Detector Distance in mm. Independent from SOD. Typical ratio SDD/SOD ~ 1.5-2.5 for cone-beam CT",
+		"comment_num_samples": "Number of samples along each ray. Controls ray discretization. Higher = more accurate but more memory",
 		"comment_dimensions": "h, w, d are the actual reconstruction volume dimensions. Based on paper: 200x200x150 voxels"
 	},
 	"train": {

@@ -55,7 +55,7 @@ class TrainData3D(data.Dataset):
         # Sample rays along u direction (horizontal)
         # Randomly select a v-row and consecutive u-columns
         index_v = np.random.randint(0, self.num_det_v, size=1)[0]
-        index_u = np.random.randint(0, self.index_max_u, size=1)[0]
+        index_u = np.random.randint(0, self.index_max_u, size=1)[0] # potentially wrong - juan
 
         # Sample consecutive rays: (num_sample_ray, num_samples, 3)
         ray_sample = self.rays[index_v, index_u:index_u+self.num_sample_ray]
