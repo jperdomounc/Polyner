@@ -77,10 +77,11 @@ def train(img_id, config):
 
     # energy spectrum
     # -----------------------
-    spectrum = scio.loadmat('./{}/GE14Spectrum120KVP.mat'.format(in_path))['GE14Spectrum120KVP']
 
-    e_1, e_n = 20, 120
-    spectrum = spectrum[e_1-1:e_n, 1]
+    spectrum = scio.loadmat('./{}/DECBCTSpectrum110KVP.mat'.format(in_path))['DECBCTSpectrum110KVP']
+
+    e_1, e_n = 20, 110
+    spectrum = spectrum[e_1-1:e_n, 0] # 0->LE, 1->HE
     spectrum = spectrum / np.sum(spectrum)
     e_level = len(spectrum)
     spectrum = torch.tensor(spectrum, dtype=torch.float).view(1, 1, -1).to(device)

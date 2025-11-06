@@ -19,17 +19,33 @@ class TrainData3D(data.Dataset):
         - detector positions: Two 1D arrays for u and v detector coordinates
     """
     def __init__(self, proj_path, proj_u_pos_path, proj_v_pos_path,
-                 num_sample_ray, num_angle, SOD, SDD, voxel_size):
+                 num_sample_ray, num_angle, SOD, SDD, voxel_size, num_samples=200):
         self.num_angle = num_angle
         self.num_sample_ray = num_sample_ray
         self.SOD = SOD
         self.SDD = SDD
         self.voxel_size = voxel_size
+        self.num_samples = num_samples
         self.angles = np.linspace(0., 360., num=self.num_angle, endpoint=False)  # (num_angle, )
 
         # Load detector positions
-        self.proj_u_pos = sitk.GetArrayFromImage(sitk.ReadImage(proj_u_pos_path)).reshape(-1)  # (num_det_u, )
-        self.proj_v_pos = sitk.GetArrayFromImage(sitk.ReadImage(proj_v_pos_path)).reshape(-1)  # (num_det_v, )
+        # Handle both 1D and meshgrid (2D) formats
+        proj_u_data = sitk.GetArrayFromImage(sitk.ReadImage(proj_u_pos_path))
+        proj_v_data = sitk.GetArrayFromImage(sitk.ReadImage(proj_v_pos_path))
+
+        # If meshgrid format (2D), extract 1D arrays
+        if len(proj_u_data.shape) == 2:
+            # Fan angles (U): vary along first dimension (rows), extract first column
+            self.proj_u_pos = proj_u_data[:, 0]  # (num_det_u, )
+        else:
+            self.proj_u_pos = proj_u_data.reshape(-1)
+
+        if len(proj_v_data.shape) == 2:
+            # Cone angles (V): vary along second dimension (columns), extract first row
+            self.proj_v_pos = proj_v_data[0, :]  # (num_det_v, )
+        else:
+            self.proj_v_pos = proj_v_data.reshape(-1)
+
         self.num_det_u = len(self.proj_u_pos)
         self.num_det_v = len(self.proj_v_pos)
 
@@ -42,7 +58,7 @@ class TrainData3D(data.Dataset):
 
         # Generate 3D cone-beam rays
         # Shape: (num_det_v, num_det_u, num_samples, 3)
-        self.rays = utils_3d.cone_beam_ray(self.proj_u_pos, self.proj_v_pos, self.SOD, self.SDD)
+        self.rays = utils_3d.cone_beam_ray(self.proj_u_pos, self.proj_v_pos, self.SOD, self.SDD, self.num_samples)
 
         # For random sampling, we'll sample from the u direction
         self.index_max_u = self.num_det_u - self.num_sample_ray
