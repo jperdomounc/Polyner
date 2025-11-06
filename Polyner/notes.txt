@@ -1,0 +1,8 @@
+doesn't have num_samples
+just does 2*SOD, see if i can mess around with 
+see if the image gets better if i increase that number
+can replace 2*sod value with parameter of num_samples
+
+can experiment by making the value smaller 
+and see if it has impact on base_resolution
+if that makes it worse, can try a higher value
