@@ -1,2 +1,3 @@
 Polyner/UNCtestdata/*.bin
 Polyner/UNCtestdata/converted/*.nii
+Polyner/input/mask_0.nii
