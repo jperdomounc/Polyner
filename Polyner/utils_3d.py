@@ -70,6 +70,7 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
             # Create ray samples from source to beyond detector
             # Sample along the ray direction
             t = np.linspace(0, 2, num_samples)  # Parameter along ray (0 at source, 1 at detector)
+            # seems to be implicitly suggesting symmetric geometry (line 72)
 
             # Ray equation: P(t) = source + t * (detector - source)
             ray_x = source_x + t * (det_x - source_x)

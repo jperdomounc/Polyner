@@ -45,6 +45,7 @@
 		"output_activation": "Squareplus",
 		"n_neurons": 128,
 		"n_hidden_layers": 2,
+		"hidden_layers_comment": "maybe 3-4 layers for 3d",
 		"comment_capacity": "For 3D, may want to increase n_neurons (e.g., 256) or n_hidden_layers (e.g., 3-4) for better representation capacity"
 	},
 	"optimization_tips": {
