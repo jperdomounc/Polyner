@@ -5,8 +5,10 @@
 		"out_dir": "./output",
 		"voxel_size": 0.04,
 		"SOD" : 1025,
+		"num_samples": 2050,
 		"h": 500,
-		"w": 500
+		"w": 500,
+		"comment_num_samples": "Number of samples along each ray. Replaces 2*SOD. Default: 2050 (2*1025). Experiment with smaller/larger values to see impact on reconstruction quality"
 	},
 	"train": {
 		"gpu": 0,

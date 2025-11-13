@@ -22,15 +22,15 @@ def ssim(image, ground_truth):
     return structural_similarity(image, ground_truth, data_range=data_range)
 
 
-def fan_beam_ray(proj_pos, SOD):
+def fan_beam_ray(proj_pos, SOD, num_samples):
     origin_x = 0
     origin_y = -1
-    y = np.linspace(-1, 1, int(2*SOD)).reshape(-1, 1)  # (2*SOD, ) -> (2*SOD, 1)
-    x = np.zeros_like(y)  # (2*SOD, 1)
-    xy_temp = np.concatenate((x, y), axis=-1)  # (2*SOD, 2)
-    xy_temp = np.concatenate((xy_temp, np.ones_like(x)), axis=-1)  # (2*SOD, 3)
+    y = np.linspace(-1, 1, int(num_samples)).reshape(-1, 1)  # (num_samples, ) -> (num_samples, 1)
+    x = np.zeros_like(y)  # (num_samples, 1)
+    xy_temp = np.concatenate((x, y), axis=-1)  # (num_samples, 2)
+    xy_temp = np.concatenate((xy_temp, np.ones_like(x)), axis=-1)  # (num_samples, 3)
     num_det = len(proj_pos)
-    xy = np.zeros(shape=(num_det, int(2*SOD), 2)) # (L, 2*SOD, 2)
+    xy = np.zeros(shape=(num_det, int(num_samples), 2)) # (L, num_samples, 2)
     for i in range(num_det):
         fan_angle_rad = np.deg2rad(proj_pos[num_det-i-1])
         M = np.array(
@@ -42,8 +42,8 @@ def fan_beam_ray(proj_pos, SOD):
                 [0, 0, 1]
             ]
         )
-        temp = xy_temp @ M.T # (2*SOD, 3) @ (3, 3) -> (2*SOD, 3)
-        xy[i, :, :] = temp[:, :2] # (2*SOD, 2)
+        temp = xy_temp @ M.T # (num_samples, 3) @ (3, 3) -> (num_samples, 3)
+        xy[i, :, :] = temp[:, :2] # (num_samples, 2)
     return xy
 
 

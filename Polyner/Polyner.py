@@ -29,6 +29,7 @@ def train(img_id, config):
     proj_pos_path = '{}/fanSensorPos.nii'.format(in_path)
     mask_path = '{}/mask_{}.nii'.format(in_path, img_id)
     h, w, SOD = config["file"]["h"], config["file"]["w"], config["file"]["SOD"]
+    num_samples = config["file"]["num_samples"]
     voxel_size = config["file"]["voxel_size"]
     num_angle, _ = sitk.GetArrayFromImage(sitk.ReadImage(proj_path)).shape
 
@@ -78,10 +79,11 @@ def train(img_id, config):
     # -----------------------
     train_loader = data.DataLoader(
         dataset=dataset.TrainData(proj_path=proj_path, proj_pos_path=proj_pos_path, SOD=SOD,
-                                  num_sample_ray=num_sample_ray, num_angle=num_angle, voxel_size=voxel_size),
+                                  num_sample_ray=num_sample_ray, num_angle=num_angle, voxel_size=voxel_size,
+                                  num_samples=num_samples),
                                   batch_size=batch_size, shuffle=True)
     test_loader = data.DataLoader(
-        dataset=dataset.TestData(h=(2 * SOD) + 1, w=(2 * SOD) + 1), batch_size=1, shuffle=False)
+        dataset=dataset.TestData(h=num_samples + 1, w=num_samples + 1), batch_size=1, shuffle=False)
 
     # optimization & reconstruction
     # -----------------------
@@ -91,10 +93,10 @@ def train(img_id, config):
         network.train()
         loss_log = 0
         for i, (ray, proj) in enumerate(train_loader):
-            ray = ray.to(device).float().view(-1, 2)   # (batch_size*num_sample_ray*2*SOD, 2)
+            ray = ray.to(device).float().view(-1, 2)   # (batch_size*num_sample_ray*num_samples, 2)
             proj = proj.to(device).float()  # (batch_size, num_sample_ray)
-            # (batch_size*num_sample_ray*2*SOD, e_level)
-            intensity_pre = network(ray).view(-1, num_sample_ray, 2 * SOD, e_level).float()
+            # (batch_size*num_sample_ray*num_samples, e_level)
+            intensity_pre = network(ray).view(-1, num_sample_ray, num_samples, e_level).float()
             # forward model
             proj_pre = torch.exp(-voxel_size *
                                  torch.sum(intensity_pre, dim=2).squeeze(-1))  # (batch_size, num_sample_ray, e_level)
@@ -114,7 +116,7 @@ def train(img_id, config):
         # model save & reconstruction
         if (e + 1) % save_epoch == 0:
             img_all = []
-            kx, ky = int(1 + ((2 * SOD) - h)/2), int(((2 * SOD) - w)/2)
+            kx, ky = int(1 + (num_samples - h)/2), int((num_samples - w)/2)
             final_loss = loss_log / len(train_loader)
             # Calculate iterations per second
             elapsed_time = time.time() - epoch_start_time
@@ -123,7 +125,7 @@ def train(img_id, config):
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 for i, (xy) in enumerate(test_loader):
                     xy = xy.to(device).float().view(-1, 2)  # (h*w, 2)
-                    img_pre = network(xy)[:, int(np.mean(np.arange(0, e_level)))].view((2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre = network(xy)[:, int(np.mean(np.arange(0, e_level)))].view(num_samples + 1, num_samples + 1)
                     img_pre = img_pre.float().cpu().detach().numpy()[kx:kx + h, ky:ky + w]
                     img_pre = np.flip(img_pre, axis=1)
 
