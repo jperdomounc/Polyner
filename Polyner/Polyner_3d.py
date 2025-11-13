@@ -169,9 +169,7 @@ def train(img_id, config):
         # Model save & 3D reconstruction
         if (e + 1) % save_epoch == 0:
             # Calculate crop indices for extracting actual image size from padded volume
-            kx, ky, kz = int(1 + ((
-                
-            ) - h)/2), int(((2 * SOD) - w)/2), int(((2 * SOD) - d)/2)
+            kx, ky, kz = int(((2 * SOD) - h)/2), int(((2 * SOD) - w)/2), int(((2 * SOD) - d)/2)
             final_loss = loss_log / len(train_loader)
 
             # Calculate iterations per second
