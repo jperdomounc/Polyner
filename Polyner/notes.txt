@@ -8,3 +8,5 @@ and see if it has impact on base_resolution
 if that makes it worse, can try a higher value
 
 for fan beam
+
+NOT FOR 3D, THIS IS FOR 2D
