@@ -168,8 +168,6 @@ def train(img_id, config):
 
         # Model save & 3D reconstruction
         if (e + 1) % save_epoch == 0:
-            # Calculate crop indices for extracting actual image size from padded volume
-            kx, ky, kz = int(((2 * SOD) - h)/2), int(((2 * SOD) - w)/2), int(((2 * SOD) - d)/2)
             final_loss = loss_log / len(train_loader)
 
             # Calculate iterations per second
@@ -180,16 +178,13 @@ def train(img_id, config):
                 torch.save(network.state_dict(), '{}/model_3d_{}.pkl'.format(model_path, img_id))
 
                 # Reconstruct 3D volume
-                for i, (xyz) in enumerate(test_loader):
+                for xyz in test_loader:
                     xyz = xyz.to(device).float().view(-1, 3)  # (h*w*d, 3)
 
                     # Reconstruct at middle energy level
                     img_pre = network(xyz)[:, int(np.mean(np.arange(0, e_level)))]
-                    img_pre = img_pre.view((2 * SOD) + 1, (2 * SOD) + 1, (2 * SOD) + 1)
+                    img_pre = img_pre.view(h, w, d)
                     img_pre = img_pre.float().cpu().detach().numpy()
-
-                    # Crop to actual image size
-                    img_pre = img_pre[kx:kx + h, ky:ky + w, kz:kz + d]
 
                     # Flip for correct orientation (may need adjustment)
                     img_pre = np.flip(img_pre, axis=1)
