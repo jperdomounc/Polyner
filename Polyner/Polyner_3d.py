@@ -56,24 +56,42 @@ def train(img_id, config):
     device = torch.device('cuda:{}'.format(str(gpu) if torch.cuda.is_available() else 'cpu'))
 
     # 3D mask
-    # looks fine v
     # -----------------------
     mask = sitk.GetArrayFromImage(sitk.ReadImage(mask_path))
-    # Pad mask to match reconstruction volume size
-    # Assumes mask is centered in the volume
-    pad_h = int(SOD - (mask.shape[0] / 2))
-    pad_w = int(SOD - (mask.shape[1] / 2))
-    pad_d = int(SOD - (mask.shape[2] / 2))
 
-    mask = np.pad(mask, ((pad_h, pad_h-1 if pad_h > 0 else 0),
-                         (pad_w, pad_w-1 if pad_w > 0 else 0),
-                         (pad_d, pad_d-1 if pad_d > 0 else 0)))
+    # Pad or crop mask to match reconstruction volume size (h, w, d)
+    # Center the mask in the reconstruction volume
+    mask_h, mask_w, mask_d = mask.shape
 
-    # Rotate for correct orientation (may need adjustment based on your data)
-    mask = np.rot90(mask, k=1, axes=(0, 1)).copy()
+    # Calculate padding/cropping for each dimension
+    pad_h_before = max(0, (h - mask_h) // 2)
+    pad_h_after = max(0, h - mask_h - pad_h_before)
+    pad_w_before = max(0, (w - mask_w) // 2)
+    pad_w_after = max(0, w - mask_w - pad_w_before)
+    pad_d_before = max(0, (d - mask_d) // 2)
+    pad_d_after = max(0, d - mask_d - pad_d_before)
 
+    # Pad mask if it's smaller than reconstruction volume
+    if mask_h < h or mask_w < w or mask_d < d:
+        mask = np.pad(mask, ((pad_h_before, pad_h_after),
+                             (pad_w_before, pad_w_after),
+                             (pad_d_before, pad_d_after)),
+                      mode='constant', constant_values=0)
+
+    # Crop mask if it's larger than reconstruction volume
+    if mask.shape[0] > h or mask.shape[1] > w or mask.shape[2] > d:
+        crop_h_start = (mask.shape[0] - h) // 2
+        crop_w_start = (mask.shape[1] - w) // 2
+        crop_d_start = (mask.shape[2] - d) // 2
+        mask = mask[crop_h_start:crop_h_start + h,
+                    crop_w_start:crop_w_start + w,
+                    crop_d_start:crop_d_start + d]
+
+    # Convert to tensor
     mask = torch.tensor(mask).float().unsqueeze(0).unsqueeze(0).to(device)
-    mask = torch.where(mask == 1, 0., 1.)  # Invert mask (0 for metal, 1 for tissue)
+    # Mask convention: 1 for metal regions, 0 for tissue regions
+    # ASE loss multiplies by mask, so smoothness is enforced in metal regions (mask=1)
+    # This is correct: metal has similar attenuation across energies
 
     # energy spectrum
     # -----------------------
@@ -135,7 +153,7 @@ def train(img_id, config):
         network.train()
         loss_log = 0
 
-        for i, (ray, proj) in enumerate(train_loader):
+        for (ray, proj) in train_loader:
             # ray: (batch_size, num_sample_ray, num_samples, 3)
             # proj: (batch_size, num_sample_ray)
             ray = ray.to(device).float().view(-1, 3)  # (batch_size*num_sample_ray*num_samples, 3)
@@ -151,7 +169,8 @@ def train(img_id, config):
                                 torch.sum(intensity_pre, dim=2).squeeze(-1))  # (batch_size, num_sample_ray, e_level)
 
             # Spectrum weighting and log projection
-            proj_pre = -torch.log(torch.sum(proj_pre * spectrum, dim=-1).squeeze(-1))  # (batch_size, num_sample_ray)
+            # Add epsilon for numerical stability
+            proj_pre = -torch.log(torch.sum(proj_pre * spectrum, dim=-1).squeeze(-1) + 1e-10)  # (batch_size, num_sample_ray)
 
             # Calculate loss
             loss = dc_loss(proj_pre, proj.to(proj_pre.dtype)) + ase_loss(intensity=intensity_pre, ray=ray)
@@ -186,8 +205,7 @@ def train(img_id, config):
                     img_pre = img_pre.view(h, w, d)
                     img_pre = img_pre.float().cpu().detach().numpy()
 
-                    # Flip for correct orientation (may need adjustment)
-                    img_pre = np.flip(img_pre, axis=1)
+                    # Output is in correct orientation (no flip needed)
 
                     # Save 3D volume
                     sitk.WriteImage(

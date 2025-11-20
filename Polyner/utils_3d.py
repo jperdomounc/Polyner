@@ -67,10 +67,13 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
             det_y = det_distance_normalized - 1  # Distance from source (normalized)
             det_z = det_distance_normalized * np.tan(cone_angle_v)
 
-            # Create ray samples from source to beyond detector
+            # Create ray samples from source through reconstruction volume
             # Sample along the ray direction
-            t = np.linspace(0, 2, num_samples)  # Parameter along ray (0 at source, 1 at detector)
-            # seems to be implicitly suggesting symmetric geometry (line 72)
+            # Optimized range for CBCT: source is at y=-1, reconstruction volume spans [-1,1]
+            # For proper coverage, sample from entry to exit of reconstruction volume
+            # With det_distance_normalized = SDD/SOD, the ray exits at t ≈ 2/det_distance_normalized
+            t_max = min(2.0 / det_distance_normalized * 1.1, 2.0)  # Add 10% margin, cap at 2.0
+            t = np.linspace(0, t_max, num_samples)  # Parameter along ray (0 at source, t_max past volume)
 
             # Ray equation: P(t) = source + t * (detector - source)
             ray_x = source_x + t * (det_x - source_x)
