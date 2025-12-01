@@ -16,135 +16,86 @@ The implementation has been specifically modified to work with UNC's linear dete
 *Fig. 3: Qualitative results of FDK and our polyner on a real-world 3D cone-beam mouse thigh sample.*
 ## 2. File Tree
 ```
-Polyner
-│  config.json					# configuration script (original)
-│  config_unc.json				# UNC-specific configuration
-│  dataset.py					# dataloader
-│  eval.py			   		# quantitative evaluation
-│  main.py					# running script for training (original)
-│  main_unc.py					# UNC-specific training script
-│  model.py					# EAS loss
-│  readme.md					# readme file
-│  Polyner.py					# training function
-│  utils.py					# tools
-│  prepare_unc_data.py				# UNC data preparation script
-│  convert_unc_data.py				# UNC data conversion utilities
-│  convert_nrrd_to_nii.py			# NRRD to NIfTI conversion
-│  metal_mask_threshold.py			# Metal mask generation
-│  requirements.txt				# Python dependencies
-│  package.json					# Node.js dependencies
-│  notes.md					# development notes
-│  notes.txt					# additional notes
-│  
-├─data_simulation				# data simulation
-│  │  config_dl.yaml				# acquisition parameters
-│  │  dl_data.m					# running script for DeepLesion dataset
-│  │  
-│  ├─+helper					# functions for data simulation
-│  │      get_mar_params.m
-│  │      interpolate_projection.m
-│  │      pkev2kvp.m
-│  │      simulate_metal_artifact.m
-│  │      @YAML/					# YAML parsing utilities
-│  │              
-│  ├─metal					# prior data for simulation
-│  │      GE14Spectrum120KVP.mat
-│  │      MiuofAl.mat, MiuofAu.mat, etc.	# material attenuation data
-│  │      SampleMasks.mat
-│  │      
-│  └─slice
-│          gt_0.nii to gt_199.nii		# raw data (200 slices)
-│      
-├─input						# original DeepLesion dataset
-│      fanSensorPos.nii				# geometry angle
-│      GE14Spectrum120KVP.mat			# energy spectrum
-│      gt_0.nii to gt_9.nii			# ground truth images
-│      mask_0.nii to mask_9.nii			# metal masks
-│      ma_0.nii to ma_9.nii			# FBP reconstructions
-│      ma_sinogram_0.nii to ma_sinogram_9.nii	# metal-corrupted measurements
-│      
-├─input_unc					# UNC-specific input data
-│      fanSensorPos.nii				# UNC linear detector geometry
-│      GE14Spectrum120KVP.mat			# energy spectrum
-│      gt_0.nii to gt_2.nii			# UNC ground truth images
-│      mask_0.nii to mask_2.nii			# UNC metal masks
-│      ma_0.nii to ma_2.nii			# UNC FBP reconstructions
-│      ma_sinogram_0.nii to ma_sinogram_2.nii	# UNC metal-corrupted measurements
-│      
-├─UNCtestdata					# UNC RANDO phantom data
-│  │  config.txt				# acquisition parameters
-│  │  Proj_RANDO_Metal_DEMSCBCT_src5_110kvp_744_229.bin	# raw projections
-│  │  Rec_RANDO_Metal_DEMSCBCT_src5_110kvp_480_480_120_75keV_HU.bin	# HU reconstruction
-│  │  Rec_RANDO_Metal_DEMSCBCT_src5_110kvp_480_480_120_75keV_mu.bin	# μ reconstruction
-│  │  Segmentation-Segment_1-label.nrrd		# metal segmentation
-│  │  spectrum_UNC.mat				# UNC X-ray spectrum
-│  │  slice42_216_216.bin, rec42_216_216.bin, sino42_400_360.bin	# test slices
-│  │  Intro1.jpg, Intro2.jpg			# documentation images
-│  │  
-│  ├─converted					# processed UNC data
-│  │      RANDO_Metal_HU_480x480x120.nii	# 3D HU volume
-│  │      RANDO_Metal_mu_480x480x120.nii	# 3D μ volume
-│  │      metal_mask_RANDO*.nii			# various metal masks
-│  │      Segmentation-Segment_1-label.nii	# converted segmentation
-│  │      slice42_216x216.nii, rec42_216x216.nii	# test slice data
-│  │      
-│  └─DualEnergy Result				# dual energy results
-│      └─DEMSCBCT
-│          └─RANDO_MAR_Ca_110kVp_noconstrain
-│              ├─VMI HU				# virtual monoenergetic images (HU)
-│              └─VMI mu				# virtual monoenergetic images (μ)
-│      
-├─model						# trained models (original)
-│      model_x.pkl				# pre-trained Polyner
-│      
-├─model_unc					# UNC-specific trained models
-│      
-├─output					# original results
-│      polyner_0.nii to polyner_9.nii		# Polyner reconstructions
-│      
-├─output_unc					# UNC-specific results
-│      
-└─gif						# visualization assets
-        fig1.gif, fig2.gif			# result animations
-        fig_method.jpg				# method overview
+PolynerCode
+│  readme.md					# this readme file
+│  notes.txt					# development notes
+│
+├─Polyner					# main package directory
+│  │  config.json				# 2D configuration (original)
+│  │  config_3d.json				# 3D cone-beam CT configuration
+│  │  main_3d.py				# 3D CBCT training script
+│  │  Polyner_3d.py				# 3D training function
+│  │  dataset_3d.py				# 3D dataloader
+│  │  utils_3d.py				# 3D reconstruction utilities
+│  │  model.py					# Attenuation Smoothness over Energies (ASE) loss
+│  │  generate_test_data_3d.py			# 3D test data generator
+│  │  notes.txt					# development notes
+│  │
+│  └─input					# 3D CBCT input data
+│          ma_projection_0.nii			# metal-corrupted projections
+│          mask_0.nii				# metal masks
+│          detectorUPos.nii			# detector U (horizontal) positions
+│          detectorVPos.nii			# detector V (vertical) positions
+│          DECBCTSpectrum110KVP.mat		# UNC X-ray energy spectrum
 ```
 
 ## 3. Dependencies and Requirements
 
+### Python Version
+- **Python 3.9+** (recommended for PyTorch 2.x compatibility)
+- Tested with Python 3.9.6
+
 ### Python Dependencies
-The following Python packages are required to run the UNC MAR package:
+The following Python packages are required to run the 3D CBCT MAR package:
 
 **Core Dependencies:**
-- Python 3.8+
-- PyTorch (with CUDA support recommended)
-- torchvision
-- torchaudio
-- tinycudann (tiny-cuda-nn) - Neural network acceleration
-- numpy - Numerical computing
-- SimpleITK - Medical image processing
-- scipy - Scientific computing library
+- **PyTorch 2.7+** (with CUDA support strongly recommended for GPU acceleration)
+- **tinycudann** (tiny-cuda-nn) - NVIDIA's tiny-cuda-nn for neural network acceleration
+- **numpy 2.0+** - Numerical computing
+- **SimpleITK** - Medical image I/O and processing
+- **scipy 1.13+** - Scientific computing library (for .mat file I/O)
 
 **Additional Dependencies:**
-- tqdm - Progress bars
-- commentjson - JSON parsing with comments
-- scikit-image (skimage) - Image processing metrics (SSIM, PSNR)
-- pathlib - Path handling (Python standard library)
+- **tqdm 4.67+** - Progress bars for training
+- **scikit-image 0.24+** - Image processing metrics (SSIM, PSNR) and morphological operations
 
-### MATLAB Dependencies
-For data simulation and preprocessing:
-- MATLAB with Image Processing Toolbox
-- YAML parser (included in `data_simulation/+helper/@YAML/`)
+**Standard Library (included with Python):**
+- json - Configuration file parsing
+- pathlib - Path handling
+- time - Performance timing
 
 ### System Requirements
-- CUDA-compatible GPU (recommended for training)
-- Minimum 8GB RAM
+- **CUDA-compatible NVIDIA GPU** (required for tinycudann)
+- **CUDA Toolkit 11.x or 12.x**
+- Minimum 8GB GPU VRAM (16GB+ recommended for large volumes)
+- Minimum 16GB system RAM (32GB+ recommended)
 - Storage space for datasets and models
 
 ### Installation
+
+**Step 1: Install PyTorch with CUDA support**
 ```bash
-pip install torch torchvision torchaudio
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-pip install simpleitk tqdm numpy commentjson scikit-image scipy
+# For CUDA 11.8
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# For CUDA 12.1
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+**Step 2: Install tiny-cuda-nn**
+```bash
+pip3 install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+**Step 3: Install remaining dependencies**
+```bash
+pip3 install numpy scipy SimpleITK tqdm scikit-image
+```
+
+**Verify Installation:**
+```bash
+python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
+python3 -c "import tinycudann; print('tinycudann installed successfully')"
 ```
 
 ## 4. UNC Multisource Array CBCT Configuration
@@ -161,95 +112,138 @@ This package has been specifically adapted for UNC's multisource array CBCT syst
 
 ### UNC-Specific Data Processing
 - **Input Data**: RANDO phantom with metal implants
-- **Data Format**: Binary reconstruction files (.bin) converted to NIfTI format
-- **Energy Spectrum**: UNC X-ray spectrum data (`spectrum_UNC.mat`)
-- **Geometry Configuration**: Linear detector geometry in `fanSensorPos.nii`
+- **Data Format**: NIfTI format (.nii) for projections, volumes, and masks
+- **Energy Spectrum**: UNC X-ray spectrum data (`DECBCTSpectrum110KVP.mat`)
+- **Geometry Configuration**: 3D cone-beam geometry with flat panel detector
 
-### Training for UNC Data
+### Training for 3D CBCT Data
 ```bash
-# Prepare UNC-specific data
-python prepare_unc_data.py
+# Navigate to the Polyner directory
+cd Polyner
 
-# Train with UNC configuration
-python main_unc.py
-
-# Evaluate UNC results
-python eval.py --config config_unc.json
+# Train 3D CBCT reconstruction
+python3 main_3d.py
 ```
 
-The UNC-specific configuration file (`config_unc.json`) contains parameters optimized for the multisource array geometry and clinical protocols.
+The 3D-specific configuration file (`config_3d.json`) contains parameters optimized for the cone-beam geometry and UNC clinical protocols.
 
-## 5. Training and Checkpoints (Original Method)
+## 5. Training and 3D Reconstruction
 
-To train the original Polyner model, navigate to `./` and run:
-```shell
-python main.py
-```
-This trains the model on DeepLesion simulation data (`./input/ma_sinogram_0~9.nii`). Models are stored in `./model` and results in `./output`.
+To train the 3D cone-beam CT reconstruction model:
 
-## 6. Evaluation
-
-To qualitatively evaluate the results, navigate to `./` and run:
-```shell
-python eval.py
-```
-This computes PSNR and SSIM values of FBP and Polyner on the DeepLesion dataset samples.
-
-For the ten sinograms (`./input/ma_sinogram_0~9.nii`), the quantitative results are shown in:
-
-|Method         | PSNR  | SSIM |
-|:------------------: |:--------------: | :------------: |
-|FBP   | 29.13±3.27 | 0.7201±0.1109 |
-|Polyner   | 37.33±0.93 | 0.9774±0.0031 |
-
-## 6. Data Simulation
-To simulate the metal-corrupted measurements, navigate to `./data_simulation` and run the MATLAB script `dl_data.m`. These code for data simulation are based on the ADN repository: https://github.com/liaohaofu/adn/tree/master
-
-
-## 7. Others
-
-NIFTI files (`.nii`) can be viewed by using the ITK-SNAP software, which is available for free download at: http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP4
-
-
-## 8. UNC Cone Beam CT Adaptation
-
-This repository has been adapted for UNC's 3D multisource cone beam CT system. Key modifications include:
-
-### UNC-Specific Configuration
-- **Geometry**: Linear detector (not arc) with UNC specifications:
-  - Source-to-object distance (SOD): 410mm
-  - Source-to-detector distance (SDD): 620mm  
-  - Detector dimensions: 148.8mm × 148.8mm
-  - Detector pixel size: 0.2mm
-  - Detector offset: 70.5mm
-
-### Data Preparation
-- `prepare_unc_data.py`: Converts UNC RANDO phantom data to Polyner format
-- `config_unc.json`: UNC-specific configuration parameters
-- `input_unc/`: Directory containing UNC test data
-
-### MATLAB Simulation Updates
-- Modified `simulate_metal_artifact.m` to use linear detector geometry
-- Updated all `fanbeam`/`ifanbeam` calls from arc to line geometry
-- Ensures proper forward/backward projection for UNC system
-
-### Usage for UNC Data
 ```bash
-# Prepare UNC data
-python prepare_unc_data.py
-
-# Train with UNC configuration  
-python main.py --config config_unc.json
-
-# Evaluate UNC results
-python eval.py --config config_unc.json
+cd Polyner
+python3 main_3d.py
 ```
 
-## 9. License
+**Configuration:** Edit `config_3d.json` to customize:
+- Volume dimensions (h, w, d)
+- Training epochs and batch size
+- Network architecture parameters
+- Source-to-object distance (SOD) and source-to-detector distance (SDD)
+- Input/output directories
+
+**Training Output:**
+- Models are saved to the directory specified in `config_3d.json` (default: `./model`)
+- Reconstructed 3D volumes (.nii files) are saved during training at intervals specified by `save_epoch`
+- Output filename format: `polyner_3d_{img_id}_{loss}_{iterations_per_sec}it_s.nii`
+
+**Training Progress:**
+The script displays:
+- Current epoch and loss
+- Learning rate
+- Iterations per second
+- Progress bar via tqdm
+
+## 6. Viewing Results
+
+**Viewing 3D Volumes:**
+NIfTI files (`.nii`) can be viewed using ITK-SNAP, 3D Slicer, or other medical imaging software:
+- **ITK-SNAP**: http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP4
+- **3D Slicer**: https://www.slicer.org/
+
+**Evaluation Metrics:**
+The `utils_3d.py` module provides functions for computing:
+- PSNR (Peak Signal-to-Noise Ratio)
+- SSIM (Structural Similarity Index)
+
+These metrics can be used to quantitatively evaluate reconstruction quality against ground truth when available.
+
+
+## 7. Key Implementation Details
+
+### 3D Cone-Beam Geometry
+The implementation handles 3D cone-beam CT with:
+- **Flat panel detector** (not arc geometry)
+- **3D ray generation** through the reconstruction volume
+- **Gantry rotation** around the z-axis (configurable)
+- **Separate U and V detector coordinates** for horizontal and vertical directions
+
+### Neural Network Architecture
+- **Input**: 3D spatial coordinates (x, y, z) in normalized space [-1, 1]
+- **Encoding**: Configurable hash encoding for efficient 3D representation
+- **Output**: Attenuation coefficients at multiple energy levels
+- **Framework**: tiny-cuda-nn for high-performance training
+
+### Forward Model
+- **Polyenergetic X-ray spectrum**: 110 kVp spectrum from UNC system
+- **Beer's Law**: Line integral along rays through the volume
+- **Energy weighting**: Spectrum-weighted integration for realistic projections
+
+### Loss Functions
+1. **Data Consistency Loss (L1)**: Matches predicted projections to measured projections
+2. **Attenuation Smoothness over Energies (ASE) Loss**: Enforces physical constraint that metal regions have similar attenuation across energies
+
+## 8. Technical Notes
+
+### Memory Considerations
+- Large 3D volumes require significant GPU memory
+- Batch size and num_sample_ray can be reduced if GPU memory is limited
+- Consider processing smaller sub-volumes for very large datasets
+
+### Training Tips
+- Training typically requires 1000-5000 epochs depending on volume complexity
+- Learning rate scheduling helps convergence
+- Monitor both data consistency and ASE loss components
+- Save checkpoints regularly (default: every 100 epochs)
+
+### Coordinate System
+- Origin at volume center
+- Normalized coordinates: [-1, 1] in all dimensions
+- Source positioned along negative y-axis
+- Detector positioned along positive y-axis
+- Gantry rotates around z-axis
+
+## 9. Troubleshooting
+
+### Common Issues
+
+**"tinycudann not found"**
+- Ensure CUDA Toolkit is installed
+- Check PyTorch CUDA compatibility
+- Rebuild tiny-cuda-nn from source if needed
+
+**"CUDA out of memory"**
+- Reduce batch_size in config_3d.json
+- Reduce num_sample_ray (number of rays per batch)
+- Reduce num_samples (samples per ray)
+- Use smaller volume dimensions
+
+**"No module named 'SimpleITK'"**
+```bash
+pip3 install SimpleITK
+```
+
+**Slow training performance**
+- Verify GPU is being used: Check CUDA availability
+- Ensure tiny-cuda-nn is properly installed with CUDA support
+- Monitor GPU utilization with `nvidia-smi`
+
+## 10. License
 
 This code is available for non-commercial research and education purposes only. It is not allowed to be reproduced, exchanged, sold, or used for profit.
 
-## 10. Citation
+## 11. Citation
 
 The original code and paper was completed by the following people below:
 ```
