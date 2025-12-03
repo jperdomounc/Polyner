@@ -8,7 +8,7 @@ import model
 import torch
 import numpy as np
 import dataset_3d
-import time
+import time``
 import SimpleITK as sitk
 import tinycudann as tcnn
 from tqdm import tqdm
@@ -90,8 +90,8 @@ def train(img_id, config):
     # Convert to tensor
     mask = torch.tensor(mask).float().unsqueeze(0).unsqueeze(0).to(device)
     # Mask convention: 1 for metal regions, 0 for tissue regions
-    # ASE loss multiplies by mask, so smoothness is enforced in metal regions (mask=1)
-    # This is correct: metal has similar attenuation across energies
+    # ASE loss multiplies by (1-mask), so smoothness is enforced in tissue regions (mask=0)
+    # This is correct: tissue has similar attenuation across energies, metal has energy-dependent attenuation
 
     # energy spectrum
     # -----------------------

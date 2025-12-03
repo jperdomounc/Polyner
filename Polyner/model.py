@@ -18,5 +18,5 @@ class Attenuation_Smootion_Over_Energies_Loss(nn.Module):
     def forward(self, ray, intensity):
         batch_size, num_sample_ray, k, e_level = intensity.shape
         mask = F.grid_sample(self.mask, ray.unsqueeze(0).unsqueeze(0).unsqueeze(0), mode='nearest', align_corners=False)[0, 0, 0, 0, :].view(batch_size, num_sample_ray, k)
-        diff = torch.sum(torch.abs(intensity[:, :, :, 1:] - intensity[:, :, :, :e_level-1]), dim=-1) * mask
+        diff = torch.sum(torch.abs(intensity[:, :, :, 1:] - intensity[:, :, :, :e_level-1]), dim=-1) * (1 - mask)
         return self.lamb * torch.sum(diff) / (batch_size * num_sample_ray * k)
