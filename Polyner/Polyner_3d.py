@@ -8,7 +8,7 @@ import model
 import torch
 import numpy as np
 import dataset_3d
-import time``
+import time
 import SimpleITK as sitk
 import tinycudann as tcnn
 from tqdm import tqdm
