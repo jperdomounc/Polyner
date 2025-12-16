@@ -49,3 +49,13 @@ Traceback (most recent call last):
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 RuntimeError: grid_sampler(): expected 5D input and grid with same number of dimensions, but got input with sizes [1, 1, 819, 819, 819] and grid with sizes [1, 1, 32000, 3]
 
+
+
+
+
+notes on dec 4 meeting 
+=======================
+get rid of ase loss (make it zero) (see if image can be reconstructed correctly) and use astra for ftk to verify if sinogram is read in properly
+-we want to verify that the 
+-have polyner and astra ftk output reconstructions without deep learning and be able to see if polyner is reading data correctly
+-and sign up for phys 395
