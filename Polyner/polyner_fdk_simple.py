@@ -13,12 +13,11 @@ FDK Algorithm:
 
 import numpy as np
 import SimpleITK as sitk
-import json
 from tqdm import tqdm
 from pathlib import Path
 
 
-def load_data(input_dir, img_id=0):
+def load_data(input_dir='./input', img_id=0):
     """
     Load projection data using Polyner's conventions.
 
@@ -382,6 +381,34 @@ def backproject_fdk_fast(filtered_proj, det_u_deg, det_v_deg,
     return volume
 
 
+def run_polyner_fdk(proj_data, det_u_deg, det_v_deg, SOD, SDD, vol_shape, voxel_size):
+    """
+    Run Polyner-style FDK reconstruction.
+
+    Args:
+        proj_data: (num_det_v, num_angles, num_det_u) projection data
+        det_u_deg: 1D array of detector U angles (degrees)
+        det_v_deg: 1D array of detector V angles (degrees)
+        SOD: Source-to-Origin distance (mm)
+        SDD: Source-to-Detector distance (mm)
+        vol_shape: (vol_x, vol_y, vol_z) volume dimensions
+        voxel_size: voxel size in mm
+
+    Returns:
+        reconstruction: 3D numpy array (x, y, z)
+    """
+    # Step 1: Filter projections
+    filtered = filter_projections(proj_data, det_u_deg, det_v_deg, SDD)
+
+    # Step 2: Backproject
+    volume = backproject_fdk_fast(
+        filtered, det_u_deg, det_v_deg,
+        SOD, SDD, vol_shape, voxel_size
+    )
+
+    return volume
+
+
 def main():
     """Main function to run Polyner-style FDK reconstruction."""
 
@@ -395,16 +422,14 @@ def main():
     SDD = 620.0        # Source-to-Detector Distance (mm)
     voxel_size = 1.0   # mm
 
-    # Volume dimensions (from mask)
-    vol_x = 256
-    vol_y = 256
-    vol_z = 64
+    # Volume dimensions
+    vol_shape = (256, 256, 64)
 
     print("=" * 60)
     print("Polyner FDK Reconstruction (No Deep Learning)")
     print("=" * 60)
     print(f"SOD: {SOD} mm, SDD: {SDD} mm")
-    print(f"Volume: {vol_x} x {vol_y} x {vol_z} at {voxel_size} mm")
+    print(f"Volume: {vol_shape[0]} x {vol_shape[1]} x {vol_shape[2]} at {voxel_size} mm")
     print()
 
     # Create output directory
@@ -414,19 +439,17 @@ def main():
     # LOAD DATA
     # ============================================
     proj_data, det_u_deg, det_v_deg = load_data(input_dir)
+    print(f"Projections: {proj_data.shape}")
+    print(f"  Range: [{proj_data.min():.4f}, {proj_data.max():.4f}]")
 
     # ============================================
     # FDK RECONSTRUCTION
     # ============================================
+    volume = run_polyner_fdk(proj_data, det_u_deg, det_v_deg, SOD, SDD, vol_shape, voxel_size)
 
-    # Step 1: Filter projections
-    filtered = filter_projections(proj_data, det_u_deg, det_v_deg, SDD)
-
-    # Step 2: Backproject (use fast version)
-    volume = backproject_fdk_fast(
-        filtered, det_u_deg, det_v_deg,
-        SOD, SDD, (vol_x, vol_y, vol_z), voxel_size
-    )
+    print(f"\nReconstruction complete!")
+    print(f"  Shape: {volume.shape}")
+    print(f"  Range: [{volume.min():.4f}, {volume.max():.4f}]")
 
     # ============================================
     # SAVE OUTPUT
@@ -444,6 +467,8 @@ def main():
     # ============================================
     try:
         import matplotlib.pyplot as plt
+
+        vol_x, vol_y, vol_z = vol_shape
 
         fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
