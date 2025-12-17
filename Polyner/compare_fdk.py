@@ -38,16 +38,11 @@ def compare_and_visualize(astra_vol, polyner_vol, output_dir='./output'):
     print(f"  Range: [{polyner_vol.min():.6f}, {polyner_vol.max():.6f}]")
     print(f"  Mean: {polyner_vol.mean():.6f}")
 
-    # ASTRA returns (z, y, x), Polyner returns (x, y, z)
-    # Transpose Polyner to match ASTRA for comparison
-    polyner_transposed = np.transpose(polyner_vol, (2, 1, 0))  # (x,y,z) -> (z,y,x)
-
-    print(f"\nPolyner transposed to match ASTRA: {polyner_transposed.shape}")
-
-    if astra_vol.shape == polyner_transposed.shape:
+    # Both now output (z, y, x) - no transpose needed
+    if astra_vol.shape == polyner_vol.shape:
         # Normalize both for comparison
         astra_norm = (astra_vol - astra_vol.min()) / (astra_vol.max() - astra_vol.min() + 1e-10)
-        polyner_norm = (polyner_transposed - polyner_transposed.min()) / (polyner_transposed.max() - polyner_transposed.min() + 1e-10)
+        polyner_norm = (polyner_vol - polyner_vol.min()) / (polyner_vol.max() - polyner_vol.min() + 1e-10)
 
         diff = astra_norm - polyner_norm
 
@@ -56,7 +51,7 @@ def compare_and_visualize(astra_vol, polyner_vol, output_dir='./output'):
         print(f"  Std diff: {diff.std():.6f}")
         print(f"  Max abs diff: {np.abs(diff).max():.6f}")
 
-        corr = np.corrcoef(astra_vol.flatten(), polyner_transposed.flatten())[0, 1]
+        corr = np.corrcoef(astra_vol.flatten(), polyner_vol.flatten())[0, 1]
         print(f"  Correlation: {corr:.6f}")
 
         # Visualization
@@ -73,12 +68,12 @@ def compare_and_visualize(astra_vol, polyner_vol, output_dir='./output'):
         axes[0, 2].imshow(astra_vol[:, astra_vol.shape[1]//2, :], cmap='gray', aspect='auto')
         axes[0, 2].set_title('ASTRA Coronal')
 
-        # Row 2: Polyner (transposed to z, y, x)
-        axes[1, 0].imshow(polyner_transposed[z_mid, :, :], cmap='gray')
+        # Row 2: Polyner (z, y, x)
+        axes[1, 0].imshow(polyner_vol[z_mid, :, :], cmap='gray')
         axes[1, 0].set_title(f'Polyner Axial (z={z_mid})')
-        axes[1, 1].imshow(polyner_transposed[:, :, polyner_transposed.shape[2]//2], cmap='gray', aspect='auto')
+        axes[1, 1].imshow(polyner_vol[:, :, polyner_vol.shape[2]//2], cmap='gray', aspect='auto')
         axes[1, 1].set_title('Polyner Sagittal')
-        axes[1, 2].imshow(polyner_transposed[:, polyner_transposed.shape[1]//2, :], cmap='gray', aspect='auto')
+        axes[1, 2].imshow(polyner_vol[:, polyner_vol.shape[1]//2, :], cmap='gray', aspect='auto')
         axes[1, 2].set_title('Polyner Coronal')
 
         # Row 3: Difference
@@ -101,9 +96,9 @@ def compare_and_visualize(astra_vol, polyner_vol, output_dir='./output'):
         print(f"\nSaved: {output_dir}/fdk_comparison.png")
 
     else:
-        print(f"\nWARNING: Shapes don't match after transpose!")
+        print(f"\nWARNING: Shapes don't match!")
         print(f"  ASTRA: {astra_vol.shape}")
-        print(f"  Polyner transposed: {polyner_transposed.shape}")
+        print(f"  Polyner: {polyner_vol.shape}")
 
     # Save both volumes
     img = sitk.GetImageFromArray(astra_vol)

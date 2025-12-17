@@ -277,105 +277,73 @@ def backproject_fdk(filtered_proj, det_u_deg, det_v_deg,
 def backproject_fdk_fast(filtered_proj, det_u_deg, det_v_deg,
                          SOD, SDD, vol_shape, voxel_size):
     """
-    Faster vectorized FDK backprojection.
+    Faster vectorized FDK backprojection - ASTRA compatible output.
 
-    Processes one Z-slice at a time with vectorized XY operations.
+    Output shape matches ASTRA: (z, y, x) = (64, 256, 256)
     """
     num_det_v, num_angles, num_det_u = filtered_proj.shape
     vol_x, vol_y, vol_z = vol_shape
 
-    print(f"\nBackprojecting to {vol_x}x{vol_y}x{vol_z} volume (fast mode)...")
+    # Output in ASTRA order: (z, y, x)
+    print(f"\nBackprojecting to ({vol_z}, {vol_y}, {vol_x}) volume (ASTRA order: z,y,x)...")
 
-    # Initialize volume
-    volume = np.zeros((vol_x, vol_y, vol_z), dtype=np.float32)
+    volume = np.zeros((vol_z, vol_y, vol_x), dtype=np.float32)
 
-    # Create volume coordinates (centered at origin)
+    # Volume coordinates in mm (centered at origin)
     x = np.linspace(-vol_x * voxel_size / 2, vol_x * voxel_size / 2, vol_x)
     y = np.linspace(-vol_y * voxel_size / 2, vol_y * voxel_size / 2, vol_y)
     z = np.linspace(-vol_z * voxel_size / 2, vol_z * voxel_size / 2, vol_z)
 
-    # Create meshgrid for XY plane
-    X, Y = np.meshgrid(x, y, indexing='ij')  # (vol_x, vol_y)
+    # Meshgrid for YX plane (to match ASTRA's y,x slice ordering)
+    Y, X = np.meshgrid(y, x, indexing='ij')  # both (vol_y, vol_x)
 
     # Projection angles
     angles = np.linspace(0, 2 * np.pi, num_angles, endpoint=False)
 
-    # Detector positions (physical)
+    # Detector positions (physical mm)
     det_u_pos = SDD * np.tan(np.deg2rad(det_u_deg))
     det_v_pos = SDD * np.tan(np.deg2rad(det_v_deg))
 
-    ODD = SDD - SOD  # Origin-to-detector distance
-
-    # Process each angle
     for angle_idx in tqdm(range(num_angles), desc="Backprojecting"):
         angle = angles[angle_idx]
         cos_a = np.cos(angle)
         sin_a = np.sin(angle)
 
-        # Source position
-        src_x = -SOD * sin_a
+        # Source position (ASTRA convention)
+        src_x = SOD * sin_a
         src_y = -SOD * cos_a
 
-        # Get filtered projection
         proj_slice = filtered_proj[:, angle_idx, :]  # (num_det_v, num_det_u)
 
-        # Process each Z slice
         for iz, vz in enumerate(z):
-            # Vector from source to each voxel in XY plane
-            dx = X - src_x  # (vol_x, vol_y)
+            # Vector from source to voxel
+            dx = X - src_x
             dy = Y - src_y
-            dz = vz  # scalar for this slice
 
-            # Distance from source to each voxel
-            dist = np.sqrt(dx**2 + dy**2 + dz**2)
+            dist = np.sqrt(dx**2 + dy**2 + vz**2)
+            ray_depth = dx * sin_a + dy * cos_a
 
-            # Project voxel onto detector
-            # Using similar triangles: det_coord = (SDD / ray_depth) * offset
-            # Ray depth = projection onto source-detector axis
-            ray_depth = dx * sin_a + dy * cos_a  # distance along central ray
-
-            # Detector coordinates
-            # u = horizontal offset at detector
-            # v = vertical offset at detector
             scale = SDD / (ray_depth + 1e-10)
-
-            # Horizontal: perpendicular to central ray in XY plane
             det_u = (dx * cos_a - dy * sin_a) * scale
-            # Vertical: z offset scaled to detector
-            det_v = dz * scale
+            det_v = vz * scale
 
-            # Convert to pixel indices
-            u_idx = np.interp(det_u, det_u_pos, np.arange(num_det_u))
-            v_idx = np.interp(det_v, det_v_pos, np.arange(num_det_v))
+            u_idx = np.interp(det_u.ravel(), det_u_pos, np.arange(num_det_u)).reshape(det_u.shape)
+            v_idx = np.interp(det_v.ravel(), det_v_pos, np.arange(num_det_v)).reshape(det_v.shape)
 
-            # Clip to valid range
             u_idx = np.clip(u_idx, 0, num_det_u - 1.001)
             v_idx = np.clip(v_idx, 0, num_det_v - 1.001)
 
-            # Bilinear interpolation
-            u0 = u_idx.astype(int)
-            v0 = v_idx.astype(int)
+            u0, v0 = u_idx.astype(int), v_idx.astype(int)
             u1 = np.minimum(u0 + 1, num_det_u - 1)
             v1 = np.minimum(v0 + 1, num_det_v - 1)
+            wu, wv = u_idx - u0, v_idx - v0
 
-            wu = u_idx - u0
-            wv = v_idx - v0
+            val = ((1-wu)*(1-wv)*proj_slice[v0, u0] + wu*(1-wv)*proj_slice[v0, u1] +
+                   (1-wu)*wv*proj_slice[v1, u0] + wu*wv*proj_slice[v1, u1])
 
-            # Sample projection values
-            val = (1 - wu) * (1 - wv) * proj_slice[v0, u0] + \
-                  wu * (1 - wv) * proj_slice[v0, u1] + \
-                  (1 - wu) * wv * proj_slice[v1, u0] + \
-                  wu * wv * proj_slice[v1, u1]
+            volume[iz, :, :] += val * (SOD / dist)**2
 
-            # FDK weighting
-            weight = (SOD / dist) ** 2
-
-            # Accumulate
-            volume[:, :, iz] += val * weight
-
-    # Normalize
     volume *= (np.pi / num_angles)
-
     print(f"  Volume range: [{volume.min():.4f}, {volume.max():.4f}]")
 
     return volume
@@ -468,24 +436,26 @@ def main():
     try:
         import matplotlib.pyplot as plt
 
-        vol_x, vol_y, vol_z = vol_shape
+        # Volume is now (z, y, x) to match ASTRA
+        out_z, out_y, out_x = volume.shape
 
         fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
-        # Axial slices
-        z_slices = [vol_z // 4, vol_z // 2, 3 * vol_z // 4]
+        # Axial slices (z, y, x) -> show y,x plane
+        z_slices = [out_z // 4, out_z // 2, 3 * out_z // 4]
         for i, z in enumerate(z_slices):
-            axes[0, i].imshow(volume[:, :, z], cmap='gray')
+            axes[0, i].imshow(volume[z, :, :], cmap='gray')
             axes[0, i].set_title(f'Axial Z={z}')
             axes[0, i].axis('off')
 
-        # Other views
-        axes[1, 0].imshow(volume[vol_x // 2, :, :], cmap='gray', aspect='auto')
-        axes[1, 0].set_title('Sagittal')
+        # Sagittal (fixed x)
+        axes[1, 0].imshow(volume[:, :, out_x // 2], cmap='gray', aspect='auto')
+        axes[1, 0].set_title(f'Sagittal X={out_x // 2}')
         axes[1, 0].axis('off')
 
-        axes[1, 1].imshow(volume[:, vol_y // 2, :], cmap='gray', aspect='auto')
-        axes[1, 1].set_title('Coronal')
+        # Coronal (fixed y)
+        axes[1, 1].imshow(volume[:, out_y // 2, :], cmap='gray', aspect='auto')
+        axes[1, 1].set_title(f'Coronal Y={out_y // 2}')
         axes[1, 1].axis('off')
 
         # Sample projection

@@ -21,7 +21,7 @@ def ssim(image, ground_truth):
     return structural_similarity(image, ground_truth, data_range=data_range)
 
 
-def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
+def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples, vol_dims=None):
     """
     Generate 3D rays for cone-beam CT geometry.
 
@@ -31,6 +31,8 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
         SOD: Source-to-Origin Distance (isocenter distance)
         SDD: Source-to-Detector Distance
         num_samples: Number of samples along each ray
+        vol_dims: Optional tuple (h, w, d) for volume dimensions. If provided,
+                  z-coordinates are scaled to match grid_coordinate_3d output.
 
     Returns:
         rays: (num_det_v, num_det_u, num_samples, 3) array of 3D ray coordinates
@@ -39,7 +41,7 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
         - Source is at (0, -1, 0) in normalized coordinates
         - Detector is a flat panel at distance SDD from source
         - Rays are sampled from source to detector, passing through reconstruction volume
-        - SOD and SDD are independent parameters defining the cone-beam geometry
+        - If vol_dims provided, z is scaled by d/max(h,w) to match grid_coordinate_3d
     """
     # Source position at (0, -1, 0) - positioned along negative y-axis in normalized coords
     source_x = 0
@@ -48,6 +50,13 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
 
     num_det_u = len(detector_u_pos)
     num_det_v = len(detector_v_pos)
+
+    # Compute z scaling factor if volume dimensions provided
+    z_scale = 1.0
+    if vol_dims is not None:
+        h, w, d = vol_dims
+        ref_dim = max(h, w)
+        z_scale = d / ref_dim  # e.g., 64/256 = 0.25
 
     # Initialize ray array: (num_det_v, num_det_u, num_samples, 3)
     rays = np.zeros((num_det_v, num_det_u, num_samples, 3))
@@ -61,17 +70,16 @@ def cone_beam_ray(detector_u_pos, detector_v_pos, SOD, SDD, num_samples):
             cone_angle_v = np.deg2rad(detector_v_pos[iv])
 
             # Detector element position (flat panel geometry)
-            # Using small angle approximation for typical CT geometry
             det_distance_normalized = SDD / SOD  # Normalized detector distance
             det_x = det_distance_normalized * np.tan(cone_angle_u)
             det_y = det_distance_normalized - 1  # Distance from source (normalized)
-            det_z = det_distance_normalized * np.tan(cone_angle_v)
+            # Scale z by volume aspect ratio
+            det_z = det_distance_normalized * np.tan(cone_angle_v) * z_scale
 
             # Create ray samples from source through reconstruction volume
             # Sample along the ray direction
             # Optimized range for CBCT: source is at y=-1, reconstruction volume spans [-1,1]
             # For proper coverage, sample from entry to exit of reconstruction volume
-            # With det_distance_normalized = SDD/SOD, the ray exits at t ≈ 2/det_distance_normalized
             t_max = min(2.0 / det_distance_normalized * 1.1, 2.0)  # Add 10% margin, cap at 2.0
             t = np.linspace(0, t_max, num_samples)  # Parameter along ray (0 at source, t_max past volume)
 
@@ -98,11 +106,25 @@ def grid_coordinate_3d(h, w, d):
         d: Depth (number of voxels in z direction)
 
     Returns:
-        xyz: (h*w*d, 3) array of normalized 3D coordinates in [-1, 1]
+        xyz: (h*w*d, 3) array of normalized 3D coordinates
+             x, y in [-1, 1], z scaled proportionally to maintain isotropic voxels
+
+    Note:
+        To maintain isotropic voxels in normalized space, z is scaled by d/max(h,w).
+        For h=256, w=256, d=64: x,y in [-1,1], z in [-0.25, 0.25]
     """
+    # Use the larger of h, w as the reference dimension
+    ref_dim = max(h, w)
+
+    # x and y span [-1, 1]
     x = np.linspace(-1, 1, h)
     y = np.linspace(-1, 1, w)
-    z = np.linspace(-1, 1, d)
+
+    # z spans proportionally based on its dimension ratio
+    # This maintains isotropic voxels in normalized space
+    z_extent = d / ref_dim  # e.g., 64/256 = 0.25
+    z = np.linspace(-z_extent, z_extent, d)
+
     x, y, z = np.meshgrid(x, y, z, indexing='ij')  # (h, w, d) each
     xyz = np.stack([x, y, z], -1).reshape(-1, 3)  # (h*w*d, 3)
     return xyz

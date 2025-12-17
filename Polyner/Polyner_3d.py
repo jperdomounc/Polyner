@@ -132,7 +132,8 @@ def train(img_id, config):
             num_samples=num_samples,
             num_sample_ray=num_sample_ray,
             num_angle=num_angle,
-            voxel_size=voxel_size
+            voxel_size=voxel_size,
+            vol_dims=(h, w, d)  # Pass volume dimensions for proper z-scaling
         ),
         batch_size=batch_size,
         shuffle=True

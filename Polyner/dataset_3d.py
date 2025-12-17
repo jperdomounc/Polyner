@@ -14,18 +14,23 @@ class TrainData3D(data.Dataset):
     """
     3D Cone-Beam CT training dataset.
 
-    Expected input format:
-        - projections: 3D array (num_angles, num_det_v, num_det_u)
+    Input data format (as stored in file):
+        - projections: 3D array (num_det_v, num_angles, num_det_u)
         - detector positions: Two 1D arrays for u and v detector coordinates
+
+    Internal format after transpose:
+        - projections: 3D array (num_angles, num_det_v, num_det_u)
     """
     def __init__(self, proj_path, proj_u_pos_path, proj_v_pos_path,
-                 num_sample_ray, num_angle, SOD, SDD, voxel_size, num_samples=200):
+                 num_sample_ray, num_angle, SOD, SDD, voxel_size, num_samples=200,
+                 vol_dims=None):
         self.num_angle = num_angle
         self.num_sample_ray = num_sample_ray
         self.SOD = SOD
         self.SDD = SDD
         self.voxel_size = voxel_size
         self.num_samples = num_samples
+        self.vol_dims = vol_dims  # (h, w, d) for proper z-scaling
         self.angles = np.linspace(0., 360., num=self.num_angle, endpoint=False)  # (num_angle, )
 
         # Load detector positions
@@ -49,16 +54,29 @@ class TrainData3D(data.Dataset):
         self.num_det_u = len(self.proj_u_pos)
         self.num_det_v = len(self.proj_v_pos)
 
-        # Load projections: (num_angle, num_det_v, num_det_u)
+        # Load projections
         proj_data = sitk.GetArrayFromImage(sitk.ReadImage(proj_path))
-        if len(proj_data.shape) == 3:
+        if len(proj_data.shape) != 3:
+            raise ValueError(f"Expected 3D projection data, got shape {proj_data.shape}")
+
+        # Data comes in as (num_det_v, num_angles, num_det_u) = (126, 360, 334)
+        # We need (num_angles, num_det_v, num_det_u) for proper indexing
+        # Check shape and transpose if needed
+        if proj_data.shape[0] == self.num_det_v and proj_data.shape[1] == num_angle:
+            # Data is (num_det_v, num_angles, num_det_u) - transpose to (num_angles, num_det_v, num_det_u)
+            self.proj = np.transpose(proj_data, (1, 0, 2))
+            print(f"Transposed projections: {proj_data.shape} -> {self.proj.shape}")
+        elif proj_data.shape[0] == num_angle:
+            # Data is already (num_angles, num_det_v, num_det_u)
             self.proj = proj_data
         else:
-            raise ValueError(f"Expected 3D projection data, got shape {proj_data.shape}")
+            raise ValueError(f"Unexpected projection shape {proj_data.shape}. "
+                           f"Expected first dim to be num_det_v={self.num_det_v} or num_angle={num_angle}")
 
         # Generate 3D cone-beam rays
         # Shape: (num_det_v, num_det_u, num_samples, 3)
-        self.rays = utils_3d.cone_beam_ray(self.proj_u_pos, self.proj_v_pos, self.SOD, self.SDD, self.num_samples)
+        self.rays = utils_3d.cone_beam_ray(self.proj_u_pos, self.proj_v_pos, self.SOD, self.SDD,
+                                            self.num_samples, vol_dims=self.vol_dims)
 
         # For random sampling, we'll sample from the u direction
         self.index_max_u = self.num_det_u - self.num_sample_ray
