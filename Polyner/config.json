@@ -1,23 +1,22 @@
 {
 	"file": {
-		"in_dir": "./input",
+		"in_dir": "./input/RANDO_no_implants_1mm/LE",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.04,
-		"SOD" : 1025,
-		"num_samples": 500,
-		"h": 500,
-		"w": 500,
-		"comment_num_samples": "Number of samples along each ray. Replaces 2*SOD. Default: 2050 (2*1025). Experiment with smaller/larger values to see impact on reconstruction quality"
+		"voxel_size": 0.1,
+		"SOD" : 410,
+		"h": 200,
+		"w": 200,
+		"d": 64
 	},
 	"train": {
 		"gpu": 0,
 		"lr": 1e-3,
-		"epoch": 10000,
-		"save_epoch": 500,
-		"num_sample_ray": 4,
-		"lr_decay_epoch": 500,
-		"lr_decay_coefficient": 0.5,
+		"epoch": 4000,
+		"save_epoch": 2000,
+		"num_sample_ray": 2,
+		"lr_decay_epoch": 2000,
+		"lr_decay_coefficient": 0.1,
 		"batch_size": 40,
 		"lambda": 0.2
 	},
