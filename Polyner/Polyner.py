@@ -126,17 +126,17 @@ def train(img_id, config):
             with torch.no_grad():
                 torch.save(network.state_dict(), '{}/model_{}.pkl'.format(model_path, img_id))
                 for i, (xyz) in enumerate(test_loader):
-                    xyz = xyz.to(device).float().view(-1, 3)  # (h*w*d, 3)
+                    xyz = xyz.float().view(-1, 3)  # (h*w*d, 3) - keep on CPU
 
                     # Batched inference to avoid OOM
                     chunk_size = 100000  # adjust based on your GPU memory
                     num_points = xyz.shape[0]
                     energy_idx = int(np.mean(np.arange(0, e_level)))
-                    
+
                     img_pre_list = []
                     for start_idx in range(0, num_points, chunk_size):
                         end_idx = min(start_idx + chunk_size, num_points)
-                        xyz_chunk = xyz[start_idx:end_idx]
+                        xyz_chunk = xyz[start_idx:end_idx].to(device)  # only move chunk to GPU
                         chunk_out = network(xyz_chunk)[:, energy_idx]
                         img_pre_list.append(chunk_out.cpu())
 
