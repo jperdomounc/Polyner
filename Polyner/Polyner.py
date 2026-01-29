@@ -59,7 +59,7 @@ def train(img_id, config):
     # -----------------------
     spectrum = scio.loadmat('./{}/DECBCTSpectrum110KVP.mat'.format(in_path))['DECBCTSpectrum110KVP']
 
-    e_1, e_n = 20, 110
+    e_1, e_n = 1, 11
     spectrum = spectrum[e_1-1:e_n, 0] # 0->LE, 1->HE
     spectrum = spectrum / np.sum(spectrum)
     e_level = len(spectrum)
