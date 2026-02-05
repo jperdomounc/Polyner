@@ -22,9 +22,9 @@ def train(img_id, config):
     in_path = config["file"]["in_dir"]
     out_path = config["file"]["out_dir"]
     model_path = config["file"]["model_dir"]
-    proj_path = '{}/proj.nii'.format(in_path)
-    proj_pos_path_u = '{}/fanSensorPosition_fanangle.nii'.format(in_path)
-    proj_pos_path_v = '{}/fanSensorPosition_coneangle.nii'.format(in_path)
+    proj_path = '{}/proj_RANDO_Zr_360.nii'.format(in_path)
+    proj_pos_path_u = '{}/fanSensorPosition_fanangle_32f.nii'.format(in_path)
+    proj_pos_path_v = '{}/fanSensorPosition_coneangle_32f.nii'.format(in_path)
     mask_path = '{}/mask.nii'.format(in_path)
     h, w, d, SOD = config["file"]["h"], config["file"]["w"], config["file"]["d"], config["file"]["SOD"]
     voxel_size = config["file"]["voxel_size"]
@@ -46,14 +46,14 @@ def train(img_id, config):
 
     # mask
     # -----------------------
-    # mask = sitk.GetArrayFromImage(sitk.ReadImage(mask_path))
-    # mask = np.rot90(np.pad(mask, ((int(SOD - (mask.shape[0] / 2)), int(SOD - (mask.shape[0] / 2))-1),
-    #                               (int(SOD - (mask.shape[1] / 2)), int(SOD - (mask.shape[1] / 2))-1),
-    #                               (int(SOD - (mask.shape[2] / 2)), int(SOD - (mask.shape[2] / 2))-1)))).copy()
-    # mask = torch.tensor(mask).float().unsqueeze(0).unsqueeze(0).to(device)
-    # mask = torch.where(mask == 1, 0., 1.)
+    mask = sitk.GetArrayFromImage(sitk.ReadImage(mask_path))
+    mask = np.rot90(np.pad(mask, ((int(SOD - (mask.shape[0] / 2)), int(SOD - (mask.shape[0] / 2))-1),
+                                   (int(SOD - (mask.shape[1] / 2)), int(SOD - (mask.shape[1] / 2))-1),
+                                   (int(SOD - (mask.shape[2] / 2)), int(SOD - (mask.shape[2] / 2))-1)))).copy()
+    mask = torch.tensor(mask).float().unsqueeze(0).unsqueeze(0).to(device)
+    mask = torch.where(mask == 1, 0., 1.)
 
-    mask = torch.zeros(1, 1, h, w, d).float().to(device)
+    # mask = torch.zeros(1, 1, h, w, d).float().to(device)
 
     # energy spectrum
     # -----------------------

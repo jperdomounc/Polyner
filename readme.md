@@ -256,3 +256,8 @@ year={2023},
 url={https://openreview.net/forum?id=xx3QgKyghS}
 }
 ```
+checkout working-cbct && git stash pop --feb 3 26
+
+"comment": "if running to higher epochs: decay 10k iterations and save every 4000 for running up to 40k"                                                                                      
+"comment2": "if learning rate decay epoch increases, batch size could have square root         
+relationship"   
