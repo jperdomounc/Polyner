@@ -3,11 +3,11 @@
 		"in_dir": "./input/RANDO_no_implants_1mm/LE",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.04,
+		"voxel_size": 0.1,
 		"SOD" : 410,
-		"h": 500,
-		"w": 500,
-		"d": 40
+		"h": 200,
+		"w": 200,
+		"d": 32
 	},
 	"train": {
 		"gpu": 0,
