@@ -22,7 +22,7 @@ def train(img_id, config):
     in_path = config["file"]["in_dir"]
     out_path = config["file"]["out_dir"]
     model_path = config["file"]["model_dir"]
-    proj_path = '{}/proj_RANDO_Zr_360.nii'.format(in_path)
+    proj_path = '{}/proj_RANDO_Metal_360degrees.nii'.format(in_path)
     proj_pos_path_u = '{}/fanSensorPosition_fanangle_32f.nii'.format(in_path)
     proj_pos_path_v = '{}/fanSensorPosition_coneangle_32f.nii'.format(in_path)
     mask_path = '{}/mask.nii'.format(in_path)
