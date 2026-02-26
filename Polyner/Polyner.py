@@ -146,7 +146,7 @@ def train(img_id, config):
                     # img_pre = np.flip(img_pre, axis=1)
                     img_pre = np.transpose(img_pre, (2, 0, 1))
 
-                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_RANDO.nii'.format(out_path))
+                sitk.WriteImage(sitk.GetImageFromArray(img_pre), '{}/polyner_RANDO_epoch{}.nii'.format(out_path, e + 1))
 
             # —— 记录 loss 到 CSV（避免变量名 w）——
             csv_path = f'{out_path}/loss_log.csv'
