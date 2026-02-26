@@ -18,7 +18,8 @@
 		"lr_decay_epoch": 2000,
 		"lr_decay_coefficient": 0.1,
 		"batch_size": 40,
-		"lambda": 0.2
+		"lambda": 0.2,
+		"comment": "batchsize and lrdecayepoch, square root relation"
 	},
 	"encoding": {
 		"otype": "Grid",
