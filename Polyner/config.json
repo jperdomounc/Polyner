@@ -14,9 +14,9 @@
 		"lr": 1e-3,
 		"epoch": 40000,
 		"save_epoch": 4000,
-		"num_sample_ray": 4,
-		"lr_decay_epoch": 2000,
-		"lr_decay_coefficient": 0.1,
+		"num_sample_ray": 16,
+		"lr_decay_epoch": 4000,
+		"lr_decay_coefficient": 0.5,
 		"batch_size": 40,
 		"lambda": 0.2,
 		"comment": "batchsize and lrdecayepoch, square root relation"
@@ -35,7 +35,7 @@
 		"otype": "FullyFusedMLP",
 		"activation": "ReLU",
 		"output_activation": "Squareplus",
-		"n_neurons": 128,
+		"n_neurons": 64,
 		"n_hidden_layers": 2
 	}
 }
