@@ -36,19 +36,24 @@ class TrainData(data.Dataset):
         self.num_samples = rays.shape[2]
         self.rays = rays.reshape(-1, self.num_samples, 3)  # (num_det, num_samples, 3)
         
-        self.index_max = self.num_det - self.num_sample_ray
-
     def __getitem__(self, item):
         ang = self.angles[item]
-        
+
         # Get projection for this angle: index the last dimension (angle)
         # proj shape: (num_det_row, num_det_col, num_angle) -> select angle -> (num_det_row, num_det_col)
         proj = self.proj[:, :, item].reshape(-1)  # (num_det_row * num_det_col,) = (num_det,)
-        
-        # Randomly sample contiguous detector rays
-        index = np.random.randint(0, self.index_max)
-        ray_sample = self.rays[index:index + self.num_sample_ray]  # (num_sample_ray, num_samples, 3)
-        proj_sample = proj[index:index + self.num_sample_ray]  # (num_sample_ray,)
+
+        # ---- Pure random ray sampling ----
+        # Randomly select `num_sample_ray` detector rays (without replacement)
+        # from the full set of num_det rays. This provides better spatial coverage
+        # and more i.i.d. gradient estimates compared to contiguous sampling.
+        indices = np.random.choice(self.num_det, size=self.num_sample_ray, replace=False)
+
+        # ray_sample shape: (num_sample_ray, num_samples, 3)   e.g. (10, 820, 3)
+        ray_sample = self.rays[indices]
+
+        # proj_sample shape: (num_sample_ray,)   e.g. (10,)
+        proj_sample = proj[indices]
         
         # Rotate ray coordinates for this gantry angle
         ray_sample = utils.rotate_ray_3d(xyz=ray_sample, angle=ang)
