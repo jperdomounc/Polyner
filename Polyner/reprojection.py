@@ -28,9 +28,13 @@ def load_metal_mask(mask_path, h, w, d, SOD, device, undo_y_flip=True):
                       within the network's [-1, 1] frame, used to rescale query pts
     """
     mask_np = sitk.GetArrayFromImage(sitk.ReadImage(mask_path)).astype(np.float32)
+    # SimpleITK returns arrays in (z, y, x) order. Our volume convention is
+    # (h, w, d) = (x, y, z), so transpose to match.
+    if mask_np.shape == (d, w, h):
+        mask_np = mask_np.transpose(2, 1, 0).copy()
     assert mask_np.shape == (h, w, d), (
         f"Mask shape {mask_np.shape} != expected volume shape ({h},{w},{d}). "
-        f"Mask must be in the same (h, w, d) space as the reconstructed volume."
+        f"Mask must be in (h, w, d) or (d, w, h) ordering."
     )
 
     # test.py applies np.flip(img_pre, axis=1) before saving the reconstruction.
@@ -103,8 +107,8 @@ def reproject(config, reproject_config):
     d          = config["file"]["d"]
     gpu        = config["train"]["gpu"]
 
-    proj_pos_path_u = '{}/fanSensorPosition_fanangle.nii'.format(in_path)
-    proj_pos_path_v = '{}/fanSensorPosition_coneangle.nii'.format(in_path)
+    proj_pos_path_u = '{}/fanSensorPosition_fanangle_32f.nii'.format(in_path)
+    proj_pos_path_v = '{}/fanSensorPosition_coneangle_32f.nii'.format(in_path)
 
     device = torch.device('cuda:{}'.format(str(gpu)) if torch.cuda.is_available() else 'cpu')
 
