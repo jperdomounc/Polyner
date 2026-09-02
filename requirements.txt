@@ -1,4 +1,5 @@
 # Install a CUDA-enabled PyTorch build and tiny-cuda-nn separately; see README.md.
+ninja>=1.11
 numpy>=1.24
 scipy>=1.10
 SimpleITK>=2.3

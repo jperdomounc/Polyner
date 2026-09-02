@@ -26,6 +26,8 @@ Google Colab was used for CUDA GPU access and for resolving the PyTorch/tiny-cud
 
 The `matnifti.py` utility makes that boundary explicit. MATLAB writes NIfTI arrays in column-major order without the axis reversal introduced by `SimpleITK.GetImageFromArray`; `matnifti.niftiwrite`, `niftiread`, and `niftiinfo` reproduce MATLAB's indexing and header conventions. `test_matnifti.py` checks byte-identical round trips against the included MATLAB-created inputs as well as NIfTI-1/2, compressed, paired-file, endian, transform, and scaling cases.
 
+The MATLAB script now included at `matlab/generate_metal_mask_from_sirt.m` documents one concrete preprocessing step: generating a binary metal mask from a SIRT reconstruction. It uses MATLAB's `niftiread`, `niftiinfo`, and `niftiwrite` functions plus Image Processing Toolbox morphology. The default workflow thresholds the top 0.5% of intensities, fills holes slice by slice, removes small 3D components, closes and dilates the mask, preserves the source NIfTI metadata, and writes both dilated and tight masks. Thresholds and morphology must be inspected for each volume; the example manual threshold of 3000 is meaningful for HU-like data, not necessarily for linear attenuation coefficients.
+
 ---
 
 ## 1. Pipeline overview
@@ -68,6 +70,8 @@ PolynerCode
 ├── README.md
 ├── requirements.txt               # non-CUDA Python dependencies
 ├── .gitignore                      # excludes caches, checkpoints, and generated outputs
+├── matlab/
+│   └── generate_metal_mask_from_sirt.m # SIRT reconstruction → binary metal mask
 └── Polyner/
     ├── main.py                     # entry point for training; loads config.json, calls Polyner.train
     ├── Polyner.py                  # the training loop, forward model, and periodic volume readout
@@ -331,6 +335,33 @@ python3 -c "import astra; print(astra.__version__)"
 
 Practical minimums: 8 GB VRAM (16 GB+ preferred), 16 GB system RAM (32 GB+ preferred). Reduce `batch_size` and `num_sample_ray` first if you hit OOM during training; reduce `chunk_size` in `reprojection.py` or `Polyner.py` if you hit it during readout.
 
+### Google Colab setup used for the experiments
+
+The project used the following Colab cells. The URLs below are plain shell URLs; the Markdown-link form sometimes copied from notebooks will not work in `pip` or `git` commands.
+
+```python
+!pip install torch torchvision torchaudio
+!pip install ninja "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
+!pip install SimpleITK tqdm numpy scipy scikit-image commentjson astra-toolbox matplotlib
+
+!git clone -b zr-360-feb4 https://github.com/jperdomounc/Polyner.git
+%cd /content/Polyner/Polyner
+!mkdir -p output model
+!ls
+```
+
+`zr-360-feb4` is the historical branch used for the February 2026 real-data experiment. It does not contain the later random-sampling, reprojection, ASTRA, NIfTI compatibility, or documentation work. For the consolidated repository, replace that branch name with `polyner-2026-cleanup` after this local branch has been pushed to GitHub. The package commands are intentionally recorded as used, but they are unpinned and may resolve to different versions in a future Colab runtime.
+
+### MATLAB metal-mask generation
+
+Requirements:
+
+- MATLAB R2017b or newer for the core NIfTI workflow. The optional plots use `xline` and `sgtitle`, which require R2018b or newer.
+- Image Processing Toolbox for `imfill`, `bwconncomp`, `strel`, `imclose`, `imdilate`, `multithresh`, and visualization helpers.
+- Statistics and Machine Learning Toolbox for the `prctile`-based percentile and Otsu-tail modes.
+
+Open `matlab/generate_metal_mask_from_sirt.m`, update `input_nifti`, `output_mask`, the threshold method, and morphology parameters in the **User parameters** block, then run the script in MATLAB. It supports manual, percentile, and Otsu thresholds and shows histogram, overlay, and optional 3D mask visualizations. With `compress_output = true`, MATLAB writes compressed `.nii.gz` output; the current training code expects the exact filename `mask.nii`, so either disable compression or copy/decompress the validated mask into the selected dataset's `LE/` directory. Confirm its dimensions, orientation, and overlay before training or metal-free reprojection.
+
 ---
 
 ## 6. Running the pipeline
@@ -413,7 +444,7 @@ These are all present in the tree as of this writing, and worth knowing before y
 
 ### Reproducibility details still needed
 
-The Python path is documented here, but a fully repeatable end-to-end reconstruction still needs the exact MATLAB scripts or commands used to create the projection, mask, angle, and spectrum files; the Colab notebook or pinned CUDA/PyTorch/tiny-cuda-nn versions; the authoritative UNC scanner distances and units; and identification of the checkpoint/output considered the canonical final result. Add those artifacts or references when they are available.
+The Colab installation commands and the SIRT-to-metal-mask MATLAB script are now recorded. A fully repeatable end-to-end reconstruction still needs the scripts or commands used to create the projection and detector-angle files, any other MATLAB reconstruction steps, pinned CUDA/PyTorch/tiny-cuda-nn versions or the original Colab notebook, the authoritative UNC scanner distances and units, and identification of the checkpoint/output considered the canonical final result.
 
 ---
 
