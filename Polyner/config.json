@@ -3,8 +3,8 @@
 		"in_dir": "./input/RANDO_no_implants_1mm/LE",
 		"model_dir": "./model",
 		"out_dir": "./output",
-		"voxel_size": 0.1,
-		"SOD" : 410,
+		"voxel_size": 0.1, // centimetres per voxel; use 0.04 for 0.4 mm
+		"SOD" : 410, // voxel intervals; 410 * 0.1 cm = 41 cm
 		"h": 200,
 		"w": 200,
 		"d": 32

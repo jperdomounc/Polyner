@@ -189,7 +189,7 @@ python3 astra_recon.py --config config.json \
 `--algorithm` accepts `FDK_CUDA`, `SIRT3D_CUDA`, or `CGLS3D_CUDA`. FDK ignores `--n_iter` and runs a single pass.
 
 > [!WARNING]
-> The VFINAF manuscript reports physical distances of SOD = 410 mm and SDD = 620 mm, so ODD = 210 mm. In consistent centimetres these are 41, 62, and 21 cm. With the checked-in `voxel_size = 0.1`, `astra_recon.py` currently constructs SAD = 41 and SDD = 82, not 62. Do not treat its present ASTRA geometry as a faithful physical model until SDD is configured independently and the intended unit conversion is verified.
+> The VFINAF manuscript reports physical distances of SOD = 410 mm and SDD = 620 mm, so ODD = 210 mm. In consistent centimetres these are 41, 62, and 21 cm. This code expresses `voxel_size` in centimetres, so the checked-in `voxel_size = 0.1` is 1 mm and `astra_recon.py` constructs SAD = 41 cm. It still assumes SDD = 82 cm, not the physical 62 cm. Do not treat its present ASTRA geometry as a faithful physical model until SDD is configured independently.
 
 ### `debug_repro.py`
 Diagnostic for the case where reprojection produces an all-zero sinogram. It prints per-tensor statistics from the checkpoint's state dict, probes the network at the origin, near the origin, and across the full `[-1, 1]` cube, then runs one angle of ray generation and reports the coordinate ranges plus the fraction of non-zero `mu`. Run it from `Polyner/` with a checkpoint at `model/model_0.pkl`. It hardcodes `cuda:0`.
@@ -243,12 +243,14 @@ For the paper's digital FORBILD-Defrise simulation, the geometry was SOD = 298 m
 | Cone (v) angle range | -2.03° to +2.03° | `fanSensorPosition_coneangle_32f.nii` |
 | Projection views | 360 over a full turn | first axis of the projection volume |
 | `SOD` | 410 | `config.json` |
-| `voxel_size` | 0.1, unit not declared in the config | `config.json` |
+| `voxel_size` | 0.1 cm = 1.0 mm | `config.json` and project clarification |
 | ASTRA SAD | `SOD · voxel_size` = 41.0 | `astra_recon.py` |
 | ASTRA SDD | `2 · SAD` = 82.0 (known mismatch with paper) | `astra_recon.py` |
 | Spectrum | 110 kVp, 6 of 7 bins, LE column | `DECBCTSpectrum110KVP.mat` |
 
-The dataset directory and experiment notes describe this checked-in case as 1 mm data, suggesting that `voxel_size = 0.1` was expressed in centimetres, but the config does not declare that unit. ASTRA does not attach unit labels to geometry coordinates: source positions, detector-center positions, per-pixel `u`/`v` vectors, and volume extents must all use the same length scale. The physical manuscript values may therefore be expressed consistently as either 410/620/210 mm or 41/62/21 cm, but they must not be mixed with the current 41/82 assumption.
+The code's internal length convention is centimetres: `voxel_size = 0.04` means 0.04 cm = 0.4 mm, while the checked-in `voxel_size = 0.1` means 1.0 mm. ASTRA does not attach unit labels to geometry coordinates: source positions, detector-center positions, per-pixel `u`/`v` vectors, and volume extents must all use the same length scale. The physical manuscript values may therefore be expressed consistently as either 410/620/210 mm or 41/62/21 cm, but they must not be mixed with the current 41/82 assumption.
+
+For NIfTI metadata, convert the internal spacing from centimetres to millimetres: `spacing_mm = 10 * voxel_size`. Thus 0.04 should be written as 0.4 mm and 0.1 as 1.0 mm. `astra_recon.py` currently passes the raw centimetre value to `SimpleITK.SetSpacing`, so its output spacing metadata is ten times too small for software that interprets NIfTI spatial units as millimetres.
 
 `SOD` also sets computational sampling density in this code: every ray gets exactly `2·SOD` = 820 samples and the readout grid is `(2·SOD+1)^3`. Changing it therefore changes both the scanner-like geometry and the cost of a training step.
 
@@ -288,7 +290,7 @@ With the shipped config: 360 angles at `batch_size = 40` gives 9 optimizer steps
 | `in_dir` | `./input/RANDO_no_implants_1mm/LE` | directory holding projections, masks, angle files, spectrum |
 | `model_dir` | `./model` | checkpoint destination (must already exist; not auto-created) |
 | `out_dir` | `./output` | reconstructions and logs (auto-created) |
-| `voxel_size` | `0.1` | ray integration step `Δ`; also sets ASTRA scale, but its physical unit is not declared |
+| `voxel_size` | `0.1` | ray integration step `Δ` in centimetres; `0.1` = 1.0 mm and `0.04` = 0.4 mm |
 | `SOD` | `410` | used as both a scanner-distance-like value and half the ray-sample count; physical manuscript SOD is 410 mm |
 | `h`, `w`, `d` | `200, 200, 32` | cropped output volume dimensions |
 
@@ -440,7 +442,7 @@ python3 astra_recon.py --sino ./output/proj_dense_360_metalfree.nii \
 
 ## 7. Viewing and evaluating results
 
-Output volumes are NIfTI. [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP4) and [3D Slicer](https://www.slicer.org/) both open them directly. `astra_recon.py` sets voxel spacing on its output; the Polyner readout does not, so `polyner_RANDO_epoch{N}.nii` displays with unit spacing.
+Output volumes are NIfTI. [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP4) and [3D Slicer](https://www.slicer.org/) both open them directly. `astra_recon.py` currently writes the raw centimetre-valued `voxel_size` as its output spacing instead of converting it to millimetres; see the known issue below. The Polyner readout does not set spacing, so `polyner_RANDO_epoch{N}.nii` displays with unit spacing.
 
 Training loss is the only metric currently computed. `output/loss_curve.png` is a log-scale plot of mean epoch loss, rewritten at each save interval, and `output/loss_log.csv` holds the same data per epoch. There is no PSNR/SSIM evaluation in the codebase at present; comparing against a ground-truth volume requires adding it.
 
@@ -480,6 +482,8 @@ These are all present in the tree as of this writing, and worth knowing before y
 **Reprojection and reconstruction are not configured from `config.json`.** Stage 2's settings live in a dict at the bottom of `reprojection.py`; stage 3's come from CLI arguments. Only geometry is shared with the training config.
 
 **The ASTRA distance ratio does not match the project paper.** The paper establishes millimetres as the physical scanner unit and reports SOD/SDD = 410/620 mm. `astra_recon.py` currently derives SDD as twice SAD, equivalent to 410/820 in the same scale. Add an independent SDD/ODD configuration and verify detector pitch/offset scaling before using ASTRA output quantitatively.
+
+**ASTRA output spacing needs a centimetre-to-millimetre conversion.** `astra_recon.py` passes `voxel_size` directly to `SimpleITK.SetSpacing`. Because this project expresses `voxel_size` in centimetres, the NIfTI spacing should instead be `10 * voxel_size`: 0.04 becomes 0.4 mm and 0.1 becomes 1.0 mm.
 
 **This branch is not the complete VFINAF pipeline.** The project manuscript's key operation is slice-wise dense 2D fan-beam reprojection followed by 2D FBP or SIRT. The current scripts synthesize and reconstruct a 3D cone-beam sinogram instead.
 
