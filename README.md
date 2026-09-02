@@ -20,6 +20,14 @@ This repository combines two kinds of evidence. The Wu et al. paper defines the 
 
 Loss values in the slides are experiment logs, not directly comparable benchmarks: the sampling strategy, ray count, volume, and effective number of full-data cycles changed between runs. The paper's PSNR/SSIM results also describe its own datasets, not this UNC branch.
 
+### Relationship to the VFINAF project paper
+
+The later project manuscript, *Volumetric Fan-Beam Imaging with Neural Attenuation Field for Cone-Beam Artifact Reduction*, describes the next research direction built from this work. VFINAF learns a scalar 3D neural attenuation field from measured cone-beam data, then queries it slice by slice along 1,440 virtual fan-beam views and reconstructs each axial slice with conventional FBP or SIRT. The goal is cone-beam artifact reduction by decoupling the final fan-beam reconstruction geometry from the incomplete circular cone-beam acquisition geometry.
+
+This branch is related research code, not a complete implementation of that manuscript. In particular, `reprojection.py` currently generates a 3D cone-beam sinogram and `astra_recon.py` performs a 3D cone-beam reconstruction; the manuscript's defining second stage instead generates a separate 2D fan-beam sinogram for every axial slice. The branch also retains Polyner's polychromatic, multi-output metal-artifact model, whereas the VFINAF manuscript describes a scalar attenuation field and an L1 projection loss.
+
+[ASTRA Toolbox](https://astra-toolbox.com/) was used for conventional FDK/SIRT reconstruction and the downstream reconstruction experiments. ASTRA supports flexible 2D fan-beam and 3D cone-beam source/detector geometry, including the `cone_vec` representation used by `astra_recon.py`; see its [3D geometry documentation](https://astra-toolbox.com/docs/geom3d.html), [FDK CUDA documentation](https://astra-toolbox.com/docs/algs/FDK_CUDA.html), and [SIRT3D CUDA documentation](https://astra-toolbox.com/docs/algs/SIRT3D_CUDA.html).
+
 ### Why Google Colab and MATLAB appear in the workflow
 
 Google Colab was used for CUDA GPU access and for resolving the PyTorch/tiny-cuda-nn dependency stack before longer cone-beam runs. MATLAB was used for parts of the image-reconstruction and data-preparation workflow, including work around fan-beam tools, projection/reconstruction experiments, `.mat` spectra, and NIfTI interchange. Those MATLAB-side steps are not all present as scripts on this branch, so the repository starts from the prepared `.mat` and `.nii` inputs.
@@ -157,11 +165,11 @@ Loads a trained checkpoint and ray-marches it to produce a dense-view sinogram, 
 Configured by the `reproject_config` dict at the bottom of the file, not by `config.json`.
 
 ### `astra_recon.py`
-Reconstructs the synthesized sinogram with ASTRA. The geometry derivation is the substance here:
+Reconstructs the synthesized sinogram with [ASTRA Toolbox](https://astra-toolbox.com/). The geometry derivation is the substance here:
 
 - The `fanSensorPosition_*` files store `atan(pixel_pos / SDD)`, so `SDD · tan(angle)` recovers uniform pixel pitch on a flat panel.
 - The u angles run from about -13.1° to +0.3°, meaning the detector is offset rather than centered. This forces `cone_vec` geometry instead of the simpler `cone`.
-- `SAD = SOD · voxel_size` and `SDD = 2 · SAD`, which is what makes the physical geometry consistent with the normalized `[-1, +1]` ray span in `cone_beam_ray`.
+- The current implementation sets `SAD = SOD · voxel_size` and assumes `SDD = 2 · SAD`. This is a code assumption inherited from the normalized `[-1, +1]` ray span; it is not the physical scanner geometry reported in the project manuscript.
 - The sinogram's u and v axes are flipped (`sino[:, ::-1, ::-1]`) to undo the reversed indexing in `cone_beam_ray`, then transposed to ASTRA's `(det_row, angle, det_col)` layout.
 - Per-projection vectors place the source at `(0, -SAD, 0)` and the detector center at `(u_center, +ODD, v_center)` at angle 0, rotating both CCW about z to match `rotate_ray_3d`.
 - The output volume is transposed back to `(h, w, d)` and flipped on axis 1 so it overlays the Polyner reconstruction.
@@ -179,6 +187,9 @@ python3 astra_recon.py --config config.json \
 ```
 
 `--algorithm` accepts `FDK_CUDA`, `SIRT3D_CUDA`, or `CGLS3D_CUDA`. FDK ignores `--n_iter` and runs a single pass.
+
+> [!WARNING]
+> The VFINAF manuscript reports physical distances of SOD = 410 mm and SDD = 620 mm, so ODD = 210 mm. In consistent centimetres these are 41, 62, and 21 cm. With the checked-in `voxel_size = 0.1`, `astra_recon.py` currently constructs SAD = 41 and SDD = 82, not 62. Do not treat its present ASTRA geometry as a faithful physical model until SDD is configured independently and the intended unit conversion is verified.
 
 ### `debug_repro.py`
 Diagnostic for the case where reprojection produces an all-zero sinogram. It prints per-tensor statistics from the checkpoint's state dict, probes the network at the origin, near the origin, and across the full `[-1, 1]` cube, then runs one angle of ray generation and reports the coordinate ranges plus the fraction of non-zero `mu`. Run it from `Polyner/` with a checkpoint at `model/model_0.pkl`. It hardcodes `cuda:0`.
@@ -199,7 +210,30 @@ python3 Polyner/test_matnifti.py
 
 ## 3. Geometry and data conventions
 
-### Scanner geometry
+### Physical CNT CBCT geometry from the VFINAF manuscript
+
+The manuscript reports scanner dimensions in millimetres and attenuation display values in `cm^-1` where applicable.
+
+| Quantity | Reported value |
+|---|---|
+| Acquisition | 360 cone-beam half-detector projections over 360° |
+| Source-to-object distance (SOD/SAD) | 410 mm |
+| Source-to-detector distance (SDD) | 620 mm |
+| Object-to-detector distance (ODD, derived) | 210 mm |
+| X-ray cone angle | 10.4° |
+| Flat-panel active area | 147.1 mm × 113.7 mm |
+| Native detector pitch | 99 micrometres = 0.099 mm |
+| Acquisition binning | 2 × 2; effective pitch approximately 0.198 mm |
+| Lateral detector shift | 70 mm |
+| FOV at rotation center | 187 mm × 70 mm |
+| Source setting | 110 kV, 11 mA, 5 ms per source |
+| Filtration | 1.7 mm Al inherent + 0.3 mm Cu external |
+| Physical-phantom reconstruction | 0.4 mm isotropic voxels |
+| VFINAF virtual reprojection | 1,440 full-detector fan-beam views |
+
+For the paper's digital FORBILD-Defrise simulation, the geometry was SOD = 298 mm, SDD = 567 mm, a 20° cone angle, 360 acquired views, 1,440 virtual views, and 0.5 mm isotropic reconstruction.
+
+### Checked-in sample and normalized code geometry
 
 | Quantity | Value | Source |
 |---|---|---|
@@ -208,13 +242,15 @@ python3 Polyner/test_matnifti.py
 | Fan (u) angle range | -13.12° to +0.32° | `fanSensorPosition_fanangle_32f.nii` |
 | Cone (v) angle range | -2.03° to +2.03° | `fanSensorPosition_coneangle_32f.nii` |
 | Projection views | 360 over a full turn | first axis of the projection volume |
-| `SOD` | 410 (grid units) | `config.json` |
-| `voxel_size` | 0.1 | `config.json` |
-| SAD | `SOD · voxel_size` = 41.0 | `astra_recon.py` |
-| SDD | `2 · SAD` = 82.0 | `astra_recon.py` |
+| `SOD` | 410 | `config.json` |
+| `voxel_size` | 0.1, unit not declared in the config | `config.json` |
+| ASTRA SAD | `SOD · voxel_size` = 41.0 | `astra_recon.py` |
+| ASTRA SDD | `2 · SAD` = 82.0 (known mismatch with paper) | `astra_recon.py` |
 | Spectrum | 110 kVp, 6 of 7 bins, LE column | `DECBCTSpectrum110KVP.mat` |
 
-`SOD` does double duty: it is the geometric source-to-object distance *and* it sets the sampling density, since every ray gets exactly `2·SOD` = 820 sample points and the readout grid is `(2·SOD+1)³`. Changing `SOD` therefore changes both the geometry and the cost of a training step.
+The dataset directory and experiment notes describe this checked-in case as 1 mm data, suggesting that `voxel_size = 0.1` was expressed in centimetres, but the config does not declare that unit. ASTRA does not attach unit labels to geometry coordinates: source positions, detector-center positions, per-pixel `u`/`v` vectors, and volume extents must all use the same length scale. The physical manuscript values may therefore be expressed consistently as either 410/620/210 mm or 41/62/21 cm, but they must not be mixed with the current 41/82 assumption.
+
+`SOD` also sets computational sampling density in this code: every ray gets exactly `2·SOD` = 820 samples and the readout grid is `(2·SOD+1)^3`. Changing it therefore changes both the scanner-like geometry and the cost of a training step.
 
 ### Coordinate frame
 
@@ -252,8 +288,8 @@ With the shipped config: 360 angles at `batch_size = 40` gives 9 optimizer steps
 | `in_dir` | `./input/RANDO_no_implants_1mm/LE` | directory holding projections, masks, angle files, spectrum |
 | `model_dir` | `./model` | checkpoint destination (must already exist; not auto-created) |
 | `out_dir` | `./output` | reconstructions and logs (auto-created) |
-| `voxel_size` | `0.1` | ray integration step `Δ` in Beer's law; also sets physical scale in ASTRA |
-| `SOD` | `410` | source-to-object distance, samples per ray (`2·SOD`), readout grid size (`2·SOD+1`) |
+| `voxel_size` | `0.1` | ray integration step `Δ`; also sets ASTRA scale, but its physical unit is not declared |
+| `SOD` | `410` | used as both a scanner-distance-like value and half the ray-sample count; physical manuscript SOD is 410 mm |
 | `h`, `w`, `d` | `200, 200, 32` | cropped output volume dimensions |
 
 ### `train`
@@ -308,7 +344,7 @@ Developed against Python 3.9.6 and PyTorch 2.7. A CUDA GPU is required, since ti
 | `commentjson` | config parsing in `main.py`, `reprojection.py`, `astra_recon.py` |
 | `tqdm` | progress bars |
 | `matplotlib` | loss curve plot |
-| `astra-toolbox` | `astra_recon.py` only |
+| [`astra-toolbox`](https://astra-toolbox.com/) | FDK/SIRT/CGLS reconstruction and project baselines |
 | `scikit-image` | imported in `Polyner.py`, currently unused |
 
 ```bash
@@ -321,8 +357,11 @@ pip3 install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/t
 # 3. Everything else
 pip3 install -r requirements.txt
 
-# 4. ASTRA, for stage 3 only (conda is the reliable route)
-conda install -c astra-toolbox astra-toolbox
+# 4. ASTRA (the Colab workflow used pip)
+pip3 install astra-toolbox
+
+# Or use the official conda channels for a CUDA-enabled environment
+conda install -c astra-toolbox -c nvidia astra-toolbox
 ```
 
 Verify:
@@ -330,7 +369,7 @@ Verify:
 ```bash
 python3 -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 python3 -c "import tinycudann; print('tinycudann ok')"
-python3 -c "import astra; print(astra.__version__)"
+python3 -c "import astra; print(astra.__version__); astra.test()"
 ```
 
 Practical minimums: 8 GB VRAM (16 GB+ preferred), 16 GB system RAM (32 GB+ preferred). Reduce `batch_size` and `num_sample_ray` first if you hit OOM during training; reduce `chunk_size` in `reprojection.py` or `Polyner.py` if you hit it during readout.
@@ -414,7 +453,7 @@ Because the loss combines data consistency and ASE, a flat total loss does not b
 1. Place `proj*.nii`, `mask.nii`, both `fanSensorPosition_*` files, and the spectrum `.mat` under a new directory, and point `in_dir` at it.
 2. Update the hardcoded filenames near the top of `Polyner.train` if yours differ. `proj_RANDO_Metal_360degrees.nii` and the `_32f` suffix on the angle files are literal strings in the source, and `reprojection.py` and `astra_recon.py` each repeat the angle filenames independently.
 3. Set `h`, `w`, `d` to your reconstruction volume, and confirm `mask.nii` matches: it is read as `(d, w, h)`.
-4. Adjust `SOD` and `voxel_size` to your scanner. Remember `SOD` also controls samples per ray and readout grid size, so a large increase is expensive.
+4. Adjust `SOD` and `voxel_size` to your scanner. Remember `SOD` also controls samples per ray and readout grid size, so a large increase is expensive. The current code has no independent `SDD` setting and assumes `SDD = 2 · SAD`; fix or verify that assumption for any physical reconstruction.
 5. If your spectrum has a different bin count or you want the high-energy column, edit `e_1`, `e_n`, and the column index in `Polyner.train`, then set a matching `e_level` in `reproject_config`.
 6. Output filenames in `Polyner.train` (`polyner_RANDO_epoch{N}.nii`) are also hardcoded.
 
@@ -440,11 +479,15 @@ These are all present in the tree as of this writing, and worth knowing before y
 
 **Reprojection and reconstruction are not configured from `config.json`.** Stage 2's settings live in a dict at the bottom of `reprojection.py`; stage 3's come from CLI arguments. Only geometry is shared with the training config.
 
+**The ASTRA distance ratio does not match the project paper.** The paper establishes millimetres as the physical scanner unit and reports SOD/SDD = 410/620 mm. `astra_recon.py` currently derives SDD as twice SAD, equivalent to 410/820 in the same scale. Add an independent SDD/ODD configuration and verify detector pitch/offset scaling before using ASTRA output quantitatively.
+
+**This branch is not the complete VFINAF pipeline.** The project manuscript's key operation is slice-wise dense 2D fan-beam reprojection followed by 2D FBP or SIRT. The current scripts synthesize and reconstruct a 3D cone-beam sinogram instead.
+
 **Inline comments are partly in Chinese**, inherited from the upstream implementation.
 
 ### Reproducibility details still needed
 
-The Colab installation commands and the SIRT-to-metal-mask MATLAB script are now recorded. A fully repeatable end-to-end reconstruction still needs the scripts or commands used to create the projection and detector-angle files, any other MATLAB reconstruction steps, pinned CUDA/PyTorch/tiny-cuda-nn versions or the original Colab notebook, the authoritative UNC scanner distances and units, and identification of the checkpoint/output considered the canonical final result.
+The Colab installation commands, SIRT-to-metal-mask MATLAB script, and physical scanner geometry are now recorded. A fully repeatable end-to-end reconstruction still needs the scripts or commands used to create the projection and detector-angle files, any other MATLAB reconstruction steps, pinned CUDA/PyTorch/tiny-cuda-nn/ASTRA versions or the original Colab notebook, a verified mapping between the physical 410/620 mm scanner distances and the network's normalized sampling grid, and identification of the checkpoint/output considered the canonical final result.
 
 ---
 
@@ -454,7 +497,9 @@ Available for non-commercial research and education only. Not to be reproduced, 
 
 ## 11. Citation
 
-The original method and reference implementation are by:
+The project manuscript is *Volumetric Fan-Beam Imaging with Neural Attenuation Field for Cone-Beam Artifact Reduction*. Add its final author list, venue, DOI, and publication year here when those citation details are finalized.
+
+The original Polyner method and reference implementation are by:
 
 ```bibtex
 @inproceedings{
