@@ -1,5 +1,23 @@
+# macOS and local editor/agent state
+.DS_Store
+.claude/settings.local.json
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local scratch data from earlier experiments
+1mm-testdata/
 Polyner/UNCtestdata/*.bin
 Polyner/UNCtestdata/converted/*.nii
 Polyner/input/mask_0.nii
 Polyner/notes.txt
-Polyner/model/model_0.pkl
+
+# Generated checkpoints, reconstructions, plots, and logs
+Polyner/model/*
+!Polyner/model/.gitkeep
+Polyner/output/*
+!Polyner/output/.gitkeep

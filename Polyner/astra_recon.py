@@ -2,10 +2,20 @@
 # ASTRA reconstruction of the dense-view sinogram
 # produced by reprojection.py.
 #
-# Polyner's forward model uses an equiangular
-# (curved) detector, so before handing the
-# projections to ASTRA we rebin onto a flat
-# virtual detector at SDD = 2 * SOD * voxel_size.
+# Geometry summary (read from input/.../fanSensor*):
+#   - Flat detector. The "fan/cone angle" files store
+#     atan(pixel_pos / SDD); SDD*tan(angle) recovers
+#     uniform pixel pitch.
+#   - Half-fan: u angles run ~[-13.1, +0.3] deg, so the
+#     detector is offset in u (centered at u_center != 0).
+#     Use cone_vec, not cone.
+#   - Polyner indexes proj_pos_u/v in reverse
+#     (utils.cone_beam_ray: proj_pos_u[n - i - 1]),
+#     so the saved sinogram axes are flipped relative
+#     to the angle files; we flip them back here.
+#
+# SAD = SOD * voxel_size, SDD = 2 * SAD (matches the
+# normalized [-1, +1] ray span in utils.cone_beam_ray).
 # ----------------------------------------------#
 import os
 import argparse
@@ -16,80 +26,6 @@ import commentjson as json
 import astra
 
 
-def rebin_arc_to_flat(sino_arc, theta_u_deg, theta_v_deg, SDD,
-                      n_u_flat=None, n_v_flat=None):
-    """
-    Resample an equiangular cone-beam sinogram onto a flat virtual detector.
-
-    Each input pixel (i, j) corresponds to a ray with fan angle theta_u[i]
-    around z and cone angle theta_v[j] around x (rotations applied in that
-    order, pivot at the source). For a flat detector at distance SDD from
-    the source perpendicular to the central ray, the ray hits:
-
-        u_flat = SDD * tan(theta_u) / cos(theta_v)
-        v_flat = SDD * tan(theta_v)
-
-    For each target flat pixel we invert this map and bilinearly sample
-    the arc sinogram.
-
-    Parameters
-    ----------
-    sino_arc : (n_angle, n_v, n_u) float32
-    theta_u_deg, theta_v_deg : 1D arrays of detector angles (degrees).
-    SDD : float
-        Source-to-detector distance, same units as the desired output
-        pixel pitch (typically mm).
-    """
-    n_v, n_u = len(theta_v_deg), len(theta_u_deg)
-    if n_u_flat is None:
-        n_u_flat = n_u
-    if n_v_flat is None:
-        n_v_flat = n_v
-
-    theta_u_rad = np.deg2rad(theta_u_deg).astype(np.float64)
-    theta_v_rad = np.deg2rad(theta_v_deg).astype(np.float64)
-
-    order_u = np.argsort(theta_u_rad)
-    order_v = np.argsort(theta_v_rad)
-    tu_sorted = theta_u_rad[order_u]
-    tv_sorted = theta_v_rad[order_v]
-
-    u_lo = SDD * np.tan(tu_sorted[0])
-    u_hi = SDD * np.tan(tu_sorted[-1])
-    v_lo = SDD * np.tan(tv_sorted[0])
-    v_hi = SDD * np.tan(tv_sorted[-1])
-    u_new = np.linspace(u_lo, u_hi, n_u_flat)
-    v_new = np.linspace(v_lo, v_hi, n_v_flat)
-    pix_u = (u_hi - u_lo) / (n_u_flat - 1)
-    pix_v = (v_hi - v_lo) / (n_v_flat - 1)
-
-    UU, VV = np.meshgrid(u_new, v_new, indexing='xy')           # (n_v_flat, n_u_flat)
-    theta_v_target = np.arctan2(VV, SDD)
-    theta_u_target = np.arctan2(UU * np.cos(theta_v_target), SDD)
-
-    iu = np.interp(theta_u_target, tu_sorted, np.arange(n_u, dtype=np.float64))
-    iv = np.interp(theta_v_target, tv_sorted, np.arange(n_v, dtype=np.float64))
-
-    iu0 = np.clip(np.floor(iu).astype(np.int64), 0, n_u - 2)
-    iv0 = np.clip(np.floor(iv).astype(np.int64), 0, n_v - 2)
-    fu = iu - iu0
-    fv = iv - iv0
-
-    sino_flat = np.empty((sino_arc.shape[0], n_v_flat, n_u_flat), dtype=np.float32)
-    for k in range(sino_arc.shape[0]):
-        slab = sino_arc[k][order_v][:, order_u]
-        s00 = slab[iv0,     iu0]
-        s10 = slab[iv0 + 1, iu0]
-        s01 = slab[iv0,     iu0 + 1]
-        s11 = slab[iv0 + 1, iu0 + 1]
-        sino_flat[k] = ((1 - fv) * (1 - fu) * s00 +
-                        fv       * (1 - fu) * s10 +
-                        (1 - fv) * fu       * s01 +
-                        fv       * fu       * s11).astype(np.float32)
-
-    return sino_flat, pix_u, pix_v
-
-
 def reconstruct(config, recon_config):
     in_path    = config["file"]["in_dir"]
     voxel_size = config["file"]["voxel_size"]
@@ -98,44 +34,92 @@ def reconstruct(config, recon_config):
 
     sino_path  = recon_config["sino_path"]
     out_path   = recon_config["out_path"]
-    out_name   = recon_config.get("out_name", "recon_fdk")
-    algorithm  = recon_config.get("algorithm", "FDK_CUDA")
-    n_iter     = recon_config.get("n_iter", 100)
+    out_name   = recon_config.get("out_name", "recon")
+    algorithm  = recon_config.get("algorithm", "SIRT3D_CUDA")
+    n_iter     = recon_config.get("n_iter", 150)
     gpu_index  = recon_config.get("gpu_index", 0)
 
     SAD = float(SOD) * float(voxel_size)
     SDD = 2.0 * SAD
     ODD = SDD - SAD
 
-    proj_pos_u = sitk.GetArrayFromImage(sitk.ReadImage(
+    # =============================================
+    # 1. Detector geometry from angle files
+    # =============================================
+    theta_u_deg = sitk.GetArrayFromImage(sitk.ReadImage(
         '{}/fanSensorPosition_fanangle_32f.nii'.format(in_path))).reshape(-1)
-    proj_pos_v = sitk.GetArrayFromImage(sitk.ReadImage(
+    theta_v_deg = sitk.GetArrayFromImage(sitk.ReadImage(
         '{}/fanSensorPosition_coneangle_32f.nii'.format(in_path))).reshape(-1)
+    n_u = len(theta_u_deg)
+    n_v = len(theta_v_deg)
 
+    u_pix = SDD * np.tan(np.deg2rad(theta_u_deg))   # (n_u,) flat positions
+    v_pix = SDD * np.tan(np.deg2rad(theta_v_deg))   # (n_v,)
+    pitch_u = (u_pix[-1] - u_pix[0]) / (n_u - 1)
+    pitch_v = (v_pix[-1] - v_pix[0]) / (n_v - 1)
+    u_center = 0.5 * (u_pix[0] + u_pix[-1])         # detector u-offset
+    v_center = 0.5 * (v_pix[0] + v_pix[-1])
+
+    # Sanity: residual of "is the detector flat" assumption
+    pitch_u_std = float(np.std(np.diff(u_pix)))
+    pitch_v_std = float(np.std(np.diff(v_pix)))
+
+    print(f"SAD={SAD:.4f}  SDD={SDD:.4f}  ODD={ODD:.4f}  voxel_size={voxel_size}")
+    print(f"Detector: {n_u} (u) x {n_v} (v), pitch_u={pitch_u:.6f} (std {pitch_u_std:.2e}), "
+          f"pitch_v={pitch_v:.6f} (std {pitch_v_std:.2e})")
+    print(f"u_pix range: [{u_pix.min():.4f}, {u_pix.max():.4f}]  "
+          f"v_pix range: [{v_pix.min():.4f}, {v_pix.max():.4f}]")
+    print(f"detector center offset: u={u_center:.4f}, v={v_center:.4f}")
+
+    # =============================================
+    # 2. Sinogram (and undo Polyner's reversed indexing)
+    # =============================================
     sino = sitk.GetArrayFromImage(sitk.ReadImage(sino_path)).astype(np.float32)
-    n_angle, n_u_in, n_v_in = sino.shape
-    print(f"Loaded sinogram {sino_path}: {sino.shape} (n_angle, n_u, n_v)")
-    sino = sino.transpose(0, 2, 1)                    # (n_angle, n_v, n_u)
+    n_angle = sino.shape[0]
+    assert sino.shape == (n_angle, n_u, n_v), \
+        f"sinogram shape {sino.shape} != ({n_angle}, {n_u}, {n_v})"
+    print(f"Loaded sinogram: {sino.shape}  range=[{sino.min():.4g}, {sino.max():.4g}]  "
+          f"mean={sino.mean():.4g}")
+    if sino.max() == 0:
+        print("WARNING: sinogram is all zeros — reconstruction will be empty. "
+              "Re-run reprojection.py against a trained model first.")
 
-    assert n_u_in == len(proj_pos_u), \
-        f"u mismatch: sinogram has {n_u_in}, fan-angle file has {len(proj_pos_u)}"
-    assert n_v_in == len(proj_pos_v), \
-        f"v mismatch: sinogram has {n_v_in}, cone-angle file has {len(proj_pos_v)}"
+    # Flip u and v axes so they go in ascending-angle order
+    # (utils.cone_beam_ray uses proj_pos_u[n-1-i], proj_pos_v[n-1-j]).
+    sino = sino[:, ::-1, ::-1].copy()
 
-    sino_flat, pix_u, pix_v = rebin_arc_to_flat(
-        sino, proj_pos_u, proj_pos_v, SDD,
-        n_u_flat=recon_config.get("n_u_flat", n_u_in),
-        n_v_flat=recon_config.get("n_v_flat", n_v_in),
-    )
-    print(f"Rebinned to flat detector at SDD={SDD:.4f}: "
-          f"shape={sino_flat.shape}, pix_u={pix_u:.4f}, pix_v={pix_v:.4f}")
+    # ASTRA 3D wants (det_row=v, n_angle, det_col=u)
+    sino_astra = np.ascontiguousarray(sino.transpose(2, 0, 1))     # (n_v, n_angle, n_u)
 
-    # ASTRA wants projection volume axes (det_v, n_angle, det_u)
-    sino_astra = np.ascontiguousarray(sino_flat.transpose(1, 0, 2))
+    # =============================================
+    # 3. cone_vec geometry per projection
+    #
+    # At angle 0:
+    #   source         = (0, -SAD, 0)
+    #   detector_ctr   = (u_center, +ODD, v_center)
+    #   u-axis (+col)  = (pitch_u, 0, 0)
+    #   v-axis (+row)  = (0, 0, pitch_v)
+    # Gantry rotates source/detector CCW about z by angles_rad[k]
+    # (matches utils.rotate_ray_3d's R = [[c,-s,0],[s,c,0],[0,0,1]]).
+    # =============================================
+    angles_rad = np.deg2rad(np.linspace(0., 360., num=n_angle, endpoint=False))
+    vectors = np.zeros((n_angle, 12), dtype=np.float64)
+    for k, a in enumerate(angles_rad):
+        ca, sa = np.cos(a), np.sin(a)
+        # rotate (x, y) by +a: (x*ca - y*sa, x*sa + y*ca)
+        srcX, srcY, srcZ = (0.0)*ca - (-SAD)*sa, (0.0)*sa + (-SAD)*ca, 0.0
+        dcX,  dcY,  dcZ  = u_center*ca - ODD*sa,   u_center*sa + ODD*ca, v_center
+        uX,   uY,   uZ   = pitch_u*ca,             pitch_u*sa,           0.0
+        vX,   vY,   vZ   = 0.0,                    0.0,                  pitch_v
+        vectors[k] = [srcX, srcY, srcZ, dcX, dcY, dcZ, uX, uY, uZ, vX, vY, vZ]
 
-    # Volume: ASTRA orders create_vol_geom args as (Y, X, Z). The returned
-    # array from data3d.get is (Z, Y, X) = (slices, rows, cols).
-    # We use h = X-extent, w = Y-extent, d = Z-extent (Polyner convention).
+    proj_geom = astra.create_proj_geom('cone_vec', n_v, n_u, vectors)
+
+    # =============================================
+    # 4. Volume geometry. Polyner convention: h=X, w=Y, d=Z.
+    # ASTRA's create_vol_geom(rows=Y, cols=X, slices=Z); returned
+    # array shape from data3d.get is (Z, Y, X).
+    # =============================================
     half_x = h * voxel_size / 2.0
     half_y = w * voxel_size / 2.0
     half_z = d * voxel_size / 2.0
@@ -146,18 +130,11 @@ def reconstruct(config, recon_config):
         -half_z, half_z,
     )
 
-    angles_rad = np.deg2rad(np.linspace(0., 360., num=n_angle, endpoint=False))
-
-    proj_geom = astra.create_proj_geom(
-        'cone',
-        pix_u, pix_v,
-        sino_astra.shape[0], sino_astra.shape[2],     # det_row_count, det_col_count
-        angles_rad,
-        SAD, ODD,
-    )
-
-    sino_id = astra.data3d.create('-proj3d', proj_geom, sino_astra)
-    rec_id  = astra.data3d.create('-vol', vol_geom)
+    # =============================================
+    # 5. Run reconstruction
+    # =============================================
+    sino_id = astra.data3d.create('-sino', proj_geom, sino_astra)
+    rec_id  = astra.data3d.create('-vol',  vol_geom)
 
     cfg = astra.astra_dict(algorithm)
     cfg['ReconstructionDataId'] = rec_id
@@ -170,16 +147,17 @@ def reconstruct(config, recon_config):
     print(f"Running {algorithm} ({iters} iter)...")
     astra.algorithm.run(alg_id, iters)
 
-    rec = astra.data3d.get(rec_id)                    # (d, w, h)
-    print(f"Reconstruction returned shape {rec.shape} (d, w, h)")
+    rec = astra.data3d.get(rec_id)                                # (d, w, h)
+    print(f"ASTRA volume shape: {rec.shape}  range=[{rec.min():.4g}, {rec.max():.4g}]")
 
     astra.algorithm.delete(alg_id)
     astra.data3d.delete(rec_id)
     astra.data3d.delete(sino_id)
 
-    # Match the orientation of test.py's saved volume:
-    # transpose to (h, w, d) and flip along axis 1 (w / y).
-    rec = np.transpose(rec, (2, 1, 0)).astype(np.float32)
+    # =============================================
+    # 6. Save (orient like Polyner's polyner_RANDO.nii)
+    # =============================================
+    rec = np.transpose(rec, (2, 1, 0)).astype(np.float32)         # (h, w, d)
     rec = np.flip(rec, axis=1).copy()
 
     os.makedirs(out_path, exist_ok=True)
@@ -187,7 +165,7 @@ def reconstruct(config, recon_config):
     img_sitk = sitk.GetImageFromArray(rec)
     img_sitk.SetSpacing((float(voxel_size),) * 3)
     sitk.WriteImage(img_sitk, out_file)
-    print(f"Saved: {out_file}  shape={rec.shape}  spacing={voxel_size}")
+    print(f"Saved: {out_file}  shape={rec.shape}")
     return rec
 
 
@@ -196,10 +174,10 @@ if __name__ == '__main__':
     parser.add_argument("--config",    default="config.json")
     parser.add_argument("--sino",      default="./output/proj_dense_360_metalfree.nii")
     parser.add_argument("--out_dir",   default="./output")
-    parser.add_argument("--out_name",  default="recon_fdk_360_metalfree")
-    parser.add_argument("--algorithm", default="FDK_CUDA",
+    parser.add_argument("--out_name",  default="recon_sirt_360_metalfree")
+    parser.add_argument("--algorithm", default="SIRT3D_CUDA",
                         choices=["FDK_CUDA", "SIRT3D_CUDA", "CGLS3D_CUDA"])
-    parser.add_argument("--n_iter",    type=int, default=100)
+    parser.add_argument("--n_iter",    type=int, default=150)
     parser.add_argument("--gpu",       type=int, default=0)
     args = parser.parse_args()
 
