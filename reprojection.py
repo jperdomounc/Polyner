@@ -189,6 +189,9 @@ def reproject(config, reproject_config):
                 # Skip metal: zero out mu at sample points inside the mask
                 if mask_tensor is not None:
                     in_metal = points_in_metal(pts, mask_tensor, lo, hi)
+                    # Debug mask alignment by temporarily using a conspicuously
+                    # high fill value or inverting the mask. If the projection is
+                    # still unchanged or zero, inspect points_in_metal first.
                     mu_chunk = mu_chunk.masked_fill(in_metal, 0.0)
 
                 mu_list.append(mu_chunk.cpu().numpy())
