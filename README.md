@@ -40,7 +40,7 @@ The MATLAB script now included at `matlab/generate_metal_mask_from_sirt.m` docum
 
 ## 1. Pipeline overview
 
-The project is three sequential stages, each a standalone script run from the `Polyner/` directory.
+The project is three sequential stages, each a standalone script run from the repository root.
 
 ```
 input/<dataset>/LE/                      config.json
@@ -74,34 +74,33 @@ Stage 1 alone produces a reconstruction (the network is sampled on a voxel grid)
 ## 2. File reference
 
 ```
-PolynerCode
+Polyner/
 ├── README.md
 ├── requirements.txt               # non-CUDA Python dependencies
 ├── .gitignore                      # excludes caches, checkpoints, and generated outputs
 ├── matlab/
 │   └── generate_metal_mask_from_sirt.m # SIRT reconstruction → binary metal mask
-└── Polyner/
-    ├── main.py                     # entry point for training; loads config.json, calls Polyner.train
-    ├── Polyner.py                  # the training loop, forward model, and periodic volume readout
-    ├── dataset.py                  # TrainData (ray/projection sampler) and TestData (readout grid)
-    ├── model.py                    # EDS regularizer (named ASE in this implementation)
-    ├── utils.py                    # cone-beam ray generation, rotation matrices, grid coordinates
-    ├── config.json                 # all geometry, training, encoding, and network parameters
-    ├── reprojection.py             # stage 2: trained model → dense-view sinogram
-    ├── astra_recon.py              # stage 3: sinogram → volume via ASTRA
-    ├── debug_repro.py              # diagnostic for an all-zero reprojection output
-    ├── matnifti.py                 # MATLAB-compatible NIfTI reader/writer and metadata API
-    ├── test_matnifti.py            # executable compatibility/regression checks
-    ├── test.py                     # scratch file, not part of the pipeline (see §9)
-    ├── input/
-    │   └── RANDO_no_implants_1mm/LE/
-    │       ├── proj_RANDO_Metal_360degrees.nii     # SimpleITK: (360, 148, 45)
-    │       ├── mask.nii                            # SimpleITK: (32, 200, 200)
-    │       ├── fanSensorPosition_fanangle_32f.nii  # 148 horizontal detector angles, deg
-    │       ├── fanSensorPosition_coneangle_32f.nii # 45 vertical detector angles, deg
-    │       └── DECBCTSpectrum110KVP.mat            # (7, 2) spectrum, col 0 = LE, col 1 = HE
-    ├── model/                      # local checkpoints (contents gitignored)
-    └── output/                     # local reconstructions and logs (contents gitignored)
+├── main.py                         # entry point for training; loads config.json, calls Polyner.train
+├── Polyner.py                      # the training loop, forward model, and periodic volume readout
+├── dataset.py                      # TrainData (ray/projection sampler) and TestData (readout grid)
+├── model.py                        # EDS regularizer (named ASE in this implementation)
+├── utils.py                        # cone-beam ray generation, rotation matrices, grid coordinates
+├── config.json                     # all geometry, training, encoding, and network parameters
+├── reprojection.py                 # stage 2: trained model → dense-view sinogram
+├── astra_recon.py                  # stage 3: sinogram → volume via ASTRA
+├── debug_repro.py                  # diagnostic for an all-zero reprojection output
+├── matnifti.py                     # MATLAB-compatible NIfTI reader/writer and metadata API
+├── test_matnifti.py                # executable compatibility/regression checks
+├── test.py                         # scratch file, not part of the pipeline (see §9)
+├── input/
+│   └── RANDO_no_implants_1mm/LE/
+│       ├── proj_RANDO_Metal_360degrees.nii     # SimpleITK: (360, 148, 45)
+│       ├── mask.nii                            # SimpleITK: (32, 200, 200)
+│       ├── fanSensorPosition_fanangle_32f.nii  # 148 horizontal detector angles, deg
+│       ├── fanSensorPosition_coneangle_32f.nii # 45 vertical detector angles, deg
+│       └── DECBCTSpectrum110KVP.mat            # (7, 2) spectrum, col 0 = LE, col 1 = HE
+├── model/                          # local checkpoints (contents gitignored)
+└── output/                         # local reconstructions and logs (contents gitignored)
 ```
 
 ### `main.py`
@@ -192,7 +191,7 @@ python3 astra_recon.py --config config.json \
 > The VFINAF manuscript reports physical distances of SOD = 410 mm and SDD = 620 mm, so ODD = 210 mm. In consistent centimetres these are 41, 62, and 21 cm. This code expresses `voxel_size` in centimetres, so the checked-in `voxel_size = 0.1` is 1 mm and `astra_recon.py` constructs SAD = 41 cm. It still assumes SDD = 82 cm, not the physical 62 cm. Do not treat its present ASTRA geometry as a faithful physical model until SDD is configured independently.
 
 ### `debug_repro.py`
-Diagnostic for the case where reprojection produces an all-zero sinogram. It prints per-tensor statistics from the checkpoint's state dict, probes the network at the origin, near the origin, and across the full `[-1, 1]` cube, then runs one angle of ray generation and reports the coordinate ranges plus the fraction of non-zero `mu`. Run it from `Polyner/` with a checkpoint at `model/model_0.pkl`. It hardcodes `cuda:0`.
+Diagnostic for the case where reprojection produces an all-zero sinogram. It prints per-tensor statistics from the checkpoint's state dict, probes the network at the origin, near the origin, and across the full `[-1, 1]` cube, then runs one angle of ray generation and reports the coordinate ranges plus the fraction of non-zero `mu`. Run it from the repository root with a checkpoint at `model/model_0.pkl`. It hardcodes `cuda:0`.
 
 ### `matnifti.py` and `test_matnifti.py`
 
@@ -201,7 +200,7 @@ Diagnostic for the case where reprojection produces an all-zero sinogram. It pri
 Run the regression suite from the repository root:
 
 ```bash
-python3 Polyner/test_matnifti.py
+python3 test_matnifti.py
 ```
 
 `nibabel` is optional; when installed, the suite also cross-checks interoperability with it.
@@ -385,13 +384,13 @@ The project used the following Colab cells. The URLs below are plain shell URLs;
 !pip install ninja "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
 !pip install SimpleITK tqdm numpy scipy scikit-image commentjson astra-toolbox matplotlib
 
-!git clone -b zr-360-feb4 https://github.com/jperdomounc/Polyner.git
-%cd /content/Polyner/Polyner
+!git clone https://github.com/jperdomounc/Polyner.git
+%cd /content/Polyner
 !mkdir -p output model
 !ls
 ```
 
-`zr-360-feb4` is the historical branch used for the February 2026 real-data experiment. It does not contain the later random-sampling, reprojection, ASTRA, NIfTI compatibility, or documentation work. For the consolidated repository, replace that branch name with `polyner-2026-cleanup` after this local branch has been pushed to GitHub. The package commands are intentionally recorded as used, but they are unpinned and may resolve to different versions in a future Colab runtime.
+The historical February 2026 experiment cloned with `-b zr-360-feb4`; that branch does not contain the later random-sampling, reprojection, ASTRA, NIfTI compatibility, or documentation work now on `main`. The package commands are intentionally recorded as used, but they are unpinned and may resolve to different versions in a future Colab runtime.
 
 ### MATLAB metal-mask generation
 
@@ -407,10 +406,10 @@ Open `matlab/generate_metal_mask_from_sirt.m`, update `input_nifti`, `output_mas
 
 ## 6. Running the pipeline
 
-All scripts assume `Polyner/` is the working directory, because paths in the configs are relative.
+All scripts assume the repository root is the working directory because paths in the config are relative. After cloning, enter the repository once:
 
 ```bash
-cd Polyner
+cd /path/to/Polyner
 ```
 
 The tracked `.gitkeep` files create `model/` and `output/` in a fresh clone; generated contents remain local and are ignored by Git.

@@ -11,13 +11,13 @@ venv/
 
 # Local scratch data from earlier experiments
 1mm-testdata/
-Polyner/UNCtestdata/*.bin
-Polyner/UNCtestdata/converted/*.nii
-Polyner/input/mask_0.nii
-Polyner/notes.txt
+UNCtestdata/*.bin
+UNCtestdata/converted/*.nii
+input/mask_0.nii
+notes.txt
 
 # Generated checkpoints, reconstructions, plots, and logs
-Polyner/model/*
-!Polyner/model/.gitkeep
-Polyner/output/*
-!Polyner/output/.gitkeep
+model/*
+!model/.gitkeep
+output/*
+!output/.gitkeep

@@ -1,6 +1,6 @@
 """
 Diagnostic: pinpoints which stage in reprojection produces all zeros.
-Run from Polyner/ dir with the trained model in model/model_0.pkl.
+Run from the repository root with the trained model in model/model_0.pkl.
 """
 import os
 import torch
